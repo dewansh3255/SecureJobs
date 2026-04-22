@@ -90,10 +90,14 @@ export default function NetworkPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const qc = useQueryClient();
 
-  // Suggestions
+  // AI-powered connection suggestions (skill overlap + mutual connections)
   const { data: suggestionsData, isLoading: suggestionsLoading } = useQuery({
     queryKey: ['suggestions'],
-    queryFn: () => apiService.connections.getSuggestions().then(r => r.data),
+    queryFn: () =>
+      apiService.recommendations.connections(12).then(r => r.data).catch(() =>
+        // Fall back to basic suggestions if recommendations fail
+        apiService.connections.getSuggestions().then(r => r.data)
+      ),
     staleTime: 60_000,
   });
 

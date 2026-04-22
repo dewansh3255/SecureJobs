@@ -109,6 +109,15 @@ export const apiService = {
       api.post('/users/me/cover', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       }),
+    // E2E encryption
+    uploadPublicKey: (publicKey: string) => api.post('/users/me/keys', { publicKey }),
+    getPublicKey: (userId: string) => api.get(`/users/${userId}/public-key`),
+  },
+
+  // Recommendations (AI — pure MongoDB aggregation)
+  recommendations: {
+    connections: (limit = 10) => api.get('/recommendations/connections', { params: { limit } }),
+    jobs: (limit = 10) => api.get('/recommendations/jobs', { params: { limit } }),
   },
 
   // Connections

@@ -61,6 +61,8 @@ export interface IUser extends Document {
   following: mongoose.Types.ObjectId[];
   connections: mongoose.Types.ObjectId[];
   blockedUsers: mongoose.Types.ObjectId[];
+  /** ECDH P-256 public key (JWK JSON string) for E2E message encryption */
+  publicKey?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -255,6 +257,10 @@ const userSchema = new Schema<IUser>(
         ref: 'User',
       },
     ],
+    publicKey: {
+      type: String,
+      select: false, // not returned by default — must be explicitly requested
+    },
   },
   {
     timestamps: true,

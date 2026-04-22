@@ -18,6 +18,7 @@ import { useAuth } from '@stores/authStore';
 import Avatar from '@components/ui/Avatar';
 import Badge from '@components/ui/Badge';
 import { useState } from 'react';
+import { useE2EKeys } from '@hooks/useE2EKeys';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
@@ -31,6 +32,9 @@ export default function MainLayout() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Initialize E2E encryption key pair (background, non-blocking)
+  useE2EKeys();
 
   const handleLogout = async () => {
     await logout();

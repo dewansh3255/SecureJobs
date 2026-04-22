@@ -240,4 +240,36 @@ router.post('/me/cover', protect, uploadRateLimiter, upload.single('cover'), asy
   }
 });
 
+/* ── E2E Encryption: Key Exchange ─────────────────────────── */
+
+// POST /users/me/keys — store ECDH public key for E2E encryption
+router.post('/me/keys', protect, async (req: Request, res: Response) => {
+  try {
+    const { publicKey } = req.body as { publicKey: string };
+    if (!publicKey || typeof publicKey !== 'string' || publicKey.length > 1024) {
+      res.status(400).json({ success: false, message: 'Invalid public key' }); return;
+    }
+
+    await User.findByIdAndUpdate((req as any).user.id, { publicKey });
+    res.json({ success: true, message: 'Public key stored' });
+  } catch (err) {
+    logger.error('Error storing public key:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /users/:id/public-key — retrieve ECDH public key for a user
+router.get('/:id/public-key', protect, async (req: Request, res: Response) => {
+  try {
+    const user = await User.findById(req.params.id).select('+publicKey').lean();
+    if (!user) { res.status(404).json({ success: false, message: 'User not found' }); return; }
+    if (!user.publicKey) { res.status(404).json({ success: false, message: 'User has no public key' }); return; }
+
+    res.json({ success: true, data: { publicKey: user.publicKey } });
+  } catch (err) {
+    logger.error('Error fetching public key:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 export default router;

@@ -32,6 +32,7 @@ import messageRoutes from './routes/message';
 import jobRoutes from './routes/job';
 import notificationRoutes from './routes/notification';
 import adminRoutes from './routes/admin';
+import recommendationsRoutes from './routes/recommendations';
 
 /**
  * Create and configure Express application
@@ -100,6 +101,7 @@ export const createApp = (): Application => {
   app.use('/api/jobs', jobRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/admin', adminRoutes);
+  app.use('/api/recommendations', recommendationsRoutes);
 
   // Serve uploaded files
   app.use('/uploads', express.static('uploads'));
