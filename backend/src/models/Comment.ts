@@ -21,6 +21,7 @@ export interface IComment extends Document {
   };
   reactionCount: number;
   isEdited: boolean;
+  isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,6 +105,11 @@ const commentSchema = new Schema<IComment>(
       type: Boolean,
       default: false,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -142,7 +148,7 @@ commentSchema.methods.removeReaction = function (userId: mongoose.Types.ObjectId
 
 // Helper to get total reactions
 commentSchema.methods.getTotalReactions = function () {
-  return Object.values(this.reactions).reduce((total, arr) => total + arr.length, 0);
+  return Object.values(this.reactions).reduce((total: number, arr: unknown) => total + (arr as mongoose.Types.ObjectId[]).length, 0);
 };
 
 const Comment = mongoose.model<IComment>('Comment', commentSchema);

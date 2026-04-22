@@ -45,8 +45,8 @@ export const helmetMiddleware = helmet({
   ieNoOpen: true,
   noSniff: true,
   originAgentCluster: true,
-  permittedCrossOriginPolicies: {
-    policies: ['same-origin'],
+  permittedCrossDomainPolicies: {
+    permittedPolicies: 'none',
   },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   xssFilter: true,
@@ -130,9 +130,7 @@ export const mongoSanitize = mongoSanitizeLib();
  * Parameter Pollution Protection
  * Prevents HTTP Parameter Pollution attacks
  */
-export const hppMiddleware = hpp({
-  denyList: ['__proto__', 'constructor', 'prototype'],
-});
+export const hppMiddleware = hpp();
 
 /**
  * XSS Protection
@@ -174,15 +172,13 @@ export const corsOptions = {
 /**
  * Security Headers for API Responses
  */
-export const securityHeaders = (req: Request, res: Response, next: NextFunction) => {
+export const securityHeaders = (_req: Request, res: Response, next: NextFunction) => {
   // Prevent caching of sensitive data
-  res.noCache = () => {
-    res.set({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0',
-    });
-  };
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  });
 
   next();
 };

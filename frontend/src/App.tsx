@@ -8,7 +8,6 @@ import { AuthProvider } from './stores/authStore';
 import MainLayout from './components/layout/MainLayout';
 
 // Pages
-import HomePage from './pages/Home';
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 import FeedPage from './pages/Feed';

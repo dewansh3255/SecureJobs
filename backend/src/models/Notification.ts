@@ -7,12 +7,15 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface INotification extends Document {
   recipient: mongoose.Types.ObjectId;
+  sender?: mongoose.Types.ObjectId;
   type: 'connection_request' | 'connection_accepted' | 'message' | 'post_reaction' |
         'comment' | 'comment_reaction' | 'job_application' | 'job_posted' |
         'mention' | 'system';
   title: string;
   message: string;
   data?: Record<string, unknown>;
+  reference?: mongoose.Types.ObjectId;
+  referenceModel?: string;
   read: boolean;
   readAt?: Date;
   actionUrl?: string;
@@ -28,6 +31,16 @@ const notificationSchema = new Schema<INotification>(
       ref: 'User',
       required: true,
       index: true,
+    },
+    sender: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reference: {
+      type: Schema.Types.ObjectId,
+    },
+    referenceModel: {
+      type: String,
     },
     type: {
       type: String,

@@ -61,5 +61,3 @@ temp/
 
 # Memory
 *.mem
-# Added by code-review-graph
-.code-review-graph/

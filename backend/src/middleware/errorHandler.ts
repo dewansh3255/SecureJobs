@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import config from '../config';
 import logger from '../utils/logger';
 
-interface AppError extends Error {
+interface IAppError extends Error {
   statusCode?: number;
   isOperational?: boolean;
   code?: string;
@@ -36,7 +36,7 @@ export class AppError extends Error {
 /**
  * Handle MongoDB Duplicate Key Error
  */
-const handleDuplicateKeyError = (err: AppError) => {
+const handleDuplicateKeyError = (err: IAppError) => {
   const field = Object.keys(err.keyPattern || {})[0];
   const message = `Duplicate value for field: ${field}`;
 
@@ -46,7 +46,7 @@ const handleDuplicateKeyError = (err: AppError) => {
 /**
  * Handle MongoDB Validation Error
  */
-const handleValidationError = (err: AppError) => {
+const handleValidationError = (err: IAppError) => {
   const errors = Object.values(err.errors || {}).map((e: unknown) => {
     const error = e as { message?: string };
     return error.message || 'Validation error';
@@ -74,7 +74,7 @@ const handleJWTExpiredError = () => {
  * Development Error Response
  * Detailed error information for debugging
  */
-const sendDevError = (res: Response, err: AppError) => {
+const sendDevError = (res: Response, err: IAppError) => {
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.message,
@@ -87,7 +87,7 @@ const sendDevError = (res: Response, err: AppError) => {
  * Production Error Response
  * Generic error messages to prevent information leakage
  */
-const sendProdError = (res: Response, err: AppError) => {
+const sendProdError = (res: Response, err: IAppError) => {
   res.status(err.statusCode || 500).json({
     success: false,
     message: err.isOperational ? err.message : 'Something went wrong. Please try again.',
@@ -98,10 +98,10 @@ const sendProdError = (res: Response, err: AppError) => {
  * Global Error Handler
  */
 export const errorHandler = (
-  err: AppError,
+  err: IAppError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   let error = { ...err };
   error.message = err.message;
@@ -115,7 +115,7 @@ export const errorHandler = (
   });
 
   // Mongoose duplicate key
-  if (err.code === 11000) {
+  if (Number(err.code) === 11000) {
     error = handleDuplicateKeyError(err);
   }
 
@@ -126,7 +126,7 @@ export const errorHandler = (
 
   // Mongoose cast error
   if (err.name === 'CastError') {
-    error = new AppError(`Invalid ${err.path}: ${(err as AppError).value}`, 400);
+    error = new AppError(`Invalid ${err.path}: ${(err as IAppError).value}`, 400);
   }
 
   // JWT errors
@@ -137,9 +137,6 @@ export const errorHandler = (
   if (err.name === 'TokenExpiredError') {
     error = handleJWTExpiredError();
   }
-
-  // Set status code
-  const statusCode = error.statusCode || 500;
 
   // Send response
   if (config.server.isDevelopment) {

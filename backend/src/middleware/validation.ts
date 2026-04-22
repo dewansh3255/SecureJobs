@@ -12,7 +12,7 @@ import { AppError } from './errorHandler';
  */
 export const handleValidationErrors = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   const errors = validationResult(req);

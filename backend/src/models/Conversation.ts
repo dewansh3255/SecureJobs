@@ -80,9 +80,6 @@ conversationSchema.index({ participants: 1 });
 conversationSchema.index({ lastMessageAt: -1 });
 conversationSchema.index({ type: 1 });
 
-// Ensure direct conversations are unique between two users
-conversationSchema.index({ participants: 1, type: 1 }, { unique: true });
-
 // Pre-save hook to update lastMessageAt
 conversationSchema.pre('save', function (next) {
   if (this.lastMessageAt === undefined) {
@@ -101,13 +98,13 @@ conversationSchema.methods.addParticipant = function (userId: mongoose.Types.Obj
 // Method to remove participant
 conversationSchema.methods.removeParticipant = function (userId: mongoose.Types.ObjectId) {
   this.participants = this.participants.filter(
-    (p) => p.toString() !== userId.toString()
+    (p: mongoose.Types.ObjectId) => p.toString() !== userId.toString()
   );
 };
 
 // Method to check if user is participant
 conversationSchema.methods.isParticipant = function (userId: mongoose.Types.ObjectId): boolean {
-  return this.participants.some((p) => p.toString() === userId.toString());
+  return this.participants.some((p: mongoose.Types.ObjectId) => p.toString() === userId.toString());
 };
 
 // Method to mute conversation
@@ -120,7 +117,7 @@ conversationSchema.methods.mute = function (userId: mongoose.Types.ObjectId) {
 // Method to unmute conversation
 conversationSchema.methods.unmute = function (userId: mongoose.Types.ObjectId) {
   this.metadata.mutedBy = this.metadata.mutedBy.filter(
-    (id) => id.toString() !== userId.toString()
+    (id: mongoose.Types.ObjectId) => id.toString() !== userId.toString()
   );
 };
 
@@ -134,7 +131,7 @@ conversationSchema.methods.archive = function (userId: mongoose.Types.ObjectId) 
 // Method to unarchive conversation
 conversationSchema.methods.unarchive = function (userId: mongoose.Types.ObjectId) {
   this.metadata.archivedBy = this.metadata.archivedBy.filter(
-    (id) => id.toString() !== userId.toString()
+    (id: mongoose.Types.ObjectId) => id.toString() !== userId.toString()
   );
 };
 

@@ -19,7 +19,6 @@ declare global {
         email: string;
         role: string;
       };
-      csrfToken?: string;
     }
   }
 }
@@ -98,7 +97,7 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
       role: user.role,
     };
 
-    next();
+    return next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       logSecurityEvent('Expired token access attempt', {
@@ -159,7 +158,7 @@ export const restrictTo = (...roles: string[]) => {
       });
     }
 
-    next();
+    return next();
   };
 };
 
@@ -167,7 +166,7 @@ export const restrictTo = (...roles: string[]) => {
  * Optional Authentication
  * Attaches user if token is present, but doesn't require it
  */
-export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+export const optionalAuth = async (req: Request, _res: Response, next: NextFunction) => {
   try {
     let token: string | undefined;
 

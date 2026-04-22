@@ -3,7 +3,7 @@
  * API health and status endpoints
  */
 
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware';
 import mongoose from 'mongoose';
 import { getRedisClient } from '../config/redis';
@@ -15,7 +15,7 @@ const router = Router();
  * GET /api/health
  * Basic health check
  */
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (_req: Request, res: Response) => {
   res.json({
     success: true,
     message: 'API is healthy',
@@ -28,7 +28,7 @@ router.get('/', asyncHandler(async (req, res) => {
  * GET /api/health/ready
  * Readiness check - verifies database connections
  */
-router.get('/ready', asyncHandler(async (req, res) => {
+router.get('/ready', asyncHandler(async (_req: Request, res: Response) => {
   const checks: Record<string, { status: string; message?: string }> = {};
 
   // Check MongoDB
@@ -69,7 +69,7 @@ router.get('/ready', asyncHandler(async (req, res) => {
  * GET /api/health/live
  * Liveness check - just confirms the server is running
  */
-router.get('/live', asyncHandler(async (req, res) => {
+router.get('/live', asyncHandler(async (_req: Request, res: Response) => {
   res.json({
     success: true,
     status: 'alive',

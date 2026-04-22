@@ -1,215 +1,166 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import {
-  UserPlus,
-  ThumbsUp,
-  MessageCircle,
-  Briefcase,
-  Star,
-  TrendingUp,
-  Check,
-  X,
-  Bell,
-} from 'lucide-react';
-import { Card, CardContent } from '@components/ui/Card';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { Bell, UserPlus, Heart, MessageCircle, Briefcase, CheckCheck } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { apiService } from '@services/api';
+import { Card } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Avatar } from '@components/ui/Avatar';
-import { Badge } from '@components/ui/Badge';
-import { cn } from '@utils/index';
 
-// Mock notifications
-const mockNotifications = [
-  {
-    id: '1',
-    type: 'connection_request',
-    actor: { name: 'Alex Johnson', avatar: null },
-    message: 'wants to connect with you',
-    time: '2m',
-    read: false,
-    action: 'pending',
-  },
-  {
-    id: '2',
-    type: 'connection_accepted',
-    actor: { name: 'Maria Garcia', avatar: null },
-    message: 'accepted your connection request',
-    time: '1h',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'post_reaction',
-    actor: { name: 'Sarah Chen', avatar: null },
-    message: 'liked your post',
-    time: '3h',
-    read: false,
-    postPreview: 'Excited to share that I just completed...',
-  },
-  {
-    id: '4',
-    type: 'comment',
-    actor: { name: 'John Doe', avatar: null },
-    message: 'commented on your post',
-    time: '5h',
-    read: true,
-    postPreview: 'Security Tip of the Day...',
-  },
-  {
-    id: '5',
-    type: 'job_application',
-    actor: { name: 'Tech Corp', avatar: null, isCompany: true },
-    message: 'received your application for Senior Software Engineer',
-    time: '1d',
-    read: true,
-  },
-  {
-    id: '6',
-    type: 'job_posted',
-    actor: { name: 'CyberDefense Inc', avatar: null, isCompany: true },
-    message: 'posted a new job: Security Engineer',
-    time: '2d',
-    read: true,
-  },
-];
+interface Notification {
+  _id: string;
+  type: string;
+  title: string;
+  message: string;
+  sender?: { _id: string; firstName: string; lastName: string; profilePicture?: string };
+  read: boolean;
+  createdAt: string;
+}
 
-const notificationIcons = {
-  connection_request: UserPlus,
-  connection_accepted: Check,
-  post_reaction: ThumbsUp,
-  comment: MessageCircle,
-  job_application: Briefcase,
-  job_posted: Star,
-  mention: TrendingUp,
-  system: Bell,
+const TYPE_ICON: Record<string, React.ReactNode> = {
+  connection_request: <UserPlus className="w-4 h-4 text-linkedin-600" />,
+  connection_accepted: <UserPlus className="w-4 h-4 text-green-500" />,
+  post_reaction: <Heart className="w-4 h-4 text-red-500" />,
+  comment: <MessageCircle className="w-4 h-4 text-blue-500" />,
+  job_application: <Briefcase className="w-4 h-4 text-purple-500" />,
+  message: <MessageCircle className="w-4 h-4 text-indigo-500" />,
 };
 
+function SkeletonRow() {
+  return (
+    <div className="flex items-center gap-3 p-4 animate-pulse">
+      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-700 shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-3 bg-gray-200 dark:bg-dark-700 rounded w-3/4" />
+        <div className="h-2 bg-gray-200 dark:bg-dark-700 rounded w-1/3" />
+      </div>
+    </div>
+  );
+}
+
 export default function NotificationsPage() {
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const qc = useQueryClient();
 
-  const filteredNotifications =
-    filter === 'unread'
-      ? mockNotifications.filter((n) => !n.read)
-      : mockNotifications;
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => apiService.notifications.get(1, 50).then(r => r.data),
+    staleTime: 20_000,
+  });
 
-  const unreadCount = mockNotifications.filter((n) => !n.read).length;
+  const markReadMutation = useMutation({
+    mutationFn: (id: string) => apiService.notifications.markAsRead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: () => apiService.notifications.markAllAsRead(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['unread-count'] });
+      toast.success('All notifications marked as read');
+    },
+  });
+
+  const notifications: Notification[] = data?.data ?? [];
+  const unread = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-2xl mx-auto pb-10 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            Notifications
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Stay updated with your network activity
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="w-6 h-6 text-linkedin-600" />
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Notifications</h1>
+          {unread > 0 && (
+            <span className="bg-linkedin-600 text-white text-xs font-bold rounded-full px-2 py-0.5">
+              {unread}
+            </span>
+          )}
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant="primary" size="md">
-            {unreadCount} new
-          </Badge>
-          <Button variant="ghost" size="sm">
+        {unread > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={<CheckCheck className="w-4 h-4" />}
+            onClick={() => markAllMutation.mutate()}
+            isLoading={markAllMutation.isPending}
+          >
             Mark all read
           </Button>
-        </div>
+        )}
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex space-x-2 mb-4">
-        <Button
-          variant={filter === 'all' ? 'primary' : 'ghost'}
-          onClick={() => setFilter('all')}
-        >
-          All
-        </Button>
-        <Button
-          variant={filter === 'unread' ? 'primary' : 'ghost'}
-          onClick={() => setFilter('unread')}
-        >
-          Unread
-        </Button>
-      </div>
-
-      {/* Notifications List */}
-      <div className="space-y-2">
-        {filteredNotifications.map((notification, index) => {
-          const Icon = notificationIcons[notification.type as keyof typeof notificationIcons];
-
-          return (
-            <motion.div
-              key={notification.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card
-                variant={notification.read ? 'default' : 'hover'}
-                className={cn(!notification.read && 'border-l-4 border-l-linkedin-500')}
+      <Card className="overflow-hidden divide-y divide-gray-100 dark:divide-dark-700">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+        ) : isError ? (
+          <div className="p-10 text-center">
+            <p className="text-gray-500 dark:text-gray-400 mb-3">Could not load notifications</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="p-12 text-center">
+            <Bell className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+            <p className="font-semibold text-gray-700 dark:text-gray-300">No notifications yet</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Interactions will appear here</p>
+          </div>
+        ) : (
+          <AnimatePresence>
+            {notifications.map(n => (
+              <motion.div
+                key={n._id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={() => { if (!n.read) markReadMutation.mutate(n._id); }}
+                className={`flex items-start gap-3 p-4 cursor-pointer transition-colors ${
+                  n.read
+                    ? 'bg-white dark:bg-dark-800'
+                    : 'bg-blue-50 dark:bg-blue-900/10 hover:bg-blue-100 dark:hover:bg-blue-900/20'
+                }`}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-4">
-                    <Avatar
-                      name={notification.actor.name}
-                      src={notification.actor.avatar}
-                      size="md"
-                    />
-                    <div className="flex-1">
-                      <p className="text-gray-900 dark:text-white">
-                        <span className="font-semibold hover:text-linkedin-600 dark:hover:text-linkedin-400 cursor-pointer">
-                          {notification.actor.name}
-                        </span>{' '}
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {notification.message}
-                        </span>
-                      </p>
-                      {notification.postPreview && (
-                        <p className="text-sm text-gray-500 dark:text-gray-500 mt-1 line-clamp-1">
-                          "{notification.postPreview}"
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-gray-500 dark:text-gray-500">
-                          {notification.time}
-                        </span>
-                        {notification.action === 'pending' && (
-                          <div className="flex space-x-2">
-                            <Button variant="primary" size="sm" leftIcon={<Check className="w-4 h-4" />}>
-                              Accept
-                            </Button>
-                            <Button variant="ghost" size="sm" leftIcon={<X className="w-4 h-4" />}>
-                              Ignore
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                {/* Avatar or icon */}
+                <div className="relative shrink-0">
+                  {n.sender ? (
+                    <>
+                      <Avatar
+                        name={`${n.sender.firstName} ${n.sender.lastName}`}
+                        src={n.sender.profilePicture}
+                        size="md"
+                      />
+                      <span className="absolute -bottom-0.5 -right-0.5 bg-white dark:bg-dark-800 rounded-full p-0.5">
+                        {TYPE_ICON[n.type] ?? <Bell className="w-3 h-3 text-gray-400" />}
+                      </span>
+                    </>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-dark-700 flex items-center justify-center">
+                      {TYPE_ICON[n.type] ?? <Bell className="w-4 h-4 text-gray-400" />}
                     </div>
-                    <div className="text-gray-400">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </div>
+                  )}
+                </div>
 
-      {filteredNotifications.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Bell className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              No notifications
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {filter === 'unread'
-                ? "You're all caught up!"
-                : "You don't have any notifications yet."}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 dark:text-gray-100">
+                    {n.sender && (
+                      <span className="font-semibold">{n.sender.firstName} {n.sender.lastName} </span>
+                    )}
+                    {n.message}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                    {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                  </p>
+                </div>
+
+                {/* Unread dot */}
+                {!n.read && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-linkedin-600 shrink-0 mt-1.5" />
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
+      </Card>
     </div>
   );
 }

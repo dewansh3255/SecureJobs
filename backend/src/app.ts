@@ -25,6 +25,12 @@ import config from './config';
 // Route imports
 import healthRoutes from './routes/health';
 import authRoutes from './routes/auth';
+import userRoutes from './routes/user';
+import connectionRoutes from './routes/connection';
+import postRoutes from './routes/post';
+import messageRoutes from './routes/message';
+import jobRoutes from './routes/job';
+import notificationRoutes from './routes/notification';
 
 /**
  * Create and configure Express application
@@ -52,9 +58,9 @@ export const createApp = (): Application => {
   // ===========================================
   // Body Parsing Middleware
   // ===========================================
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-  app.use(cookieParser(process.env.JWT_SECRET || 'secret'));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(cookieParser(config.jwt.secret));
 
   // ===========================================
   // Compression
@@ -88,7 +94,7 @@ export const createApp = (): Application => {
 
   // Add CSRF token to response
   app.use((req, res, next) => {
-    res.cookie('XSRF-TOKEN', req.csrfToken(), {
+    res.cookie('XSRF-TOKEN', (req as any).csrfToken(), {
       httpOnly: false,
       secure: config.server.isProduction,
       sameSite: 'strict',
@@ -102,11 +108,20 @@ export const createApp = (): Application => {
   // ===========================================
   app.use('/api/health', healthRoutes);
   app.use('/api/auth', authRoutes);
+  app.use('/api/users', userRoutes);
+  app.use('/api/connections', connectionRoutes);
+  app.use('/api/posts', postRoutes);
+  app.use('/api/messages', messageRoutes);
+  app.use('/api/jobs', jobRoutes);
+  app.use('/api/notifications', notificationRoutes);
+
+  // Serve uploaded files
+  app.use('/uploads', express.static('uploads'));
 
   // ===========================================
   // Root Route
   // ===========================================
-  app.get('/', (req, res) => {
+  app.get('/', (_req, res) => {
     res.json({
       success: true,
       message: 'Professional Network API - FCS-26',

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import axios from 'axios';
 
 // API configuration
@@ -63,7 +63,7 @@ interface RegisterData {
 // Create auth store
 const useAuthStore = create<AuthStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isAuthenticated: false,
       isLoading: true,
@@ -194,26 +194,6 @@ export const useAuth = () => {
     logout,
     clearError,
   };
-};
-
-// Protected route component
-export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading } = useAuthStore();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-linkedin-500"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    window.location.href = '/login';
-    return null;
-  }
-
-  return <>{children}</>;
 };
 
 export default useAuthStore;

@@ -1,0 +1,4 @@
+let me know when the code is ready to test, also tell me the steps I need to follow to test the project.
+are all the packages installed locally or is it inside docker? we need to make sure that insllales are inside docker or the python packes are inside venv so that local is not heavy loaded as well we can easily transport the code to other systems as well. Another usecase for this can be that anyone who views this project on github and just follow simple tests to run this project easily on his/her own system.
+Do we have rate limiters on all possible points where it should be present?
+our website should be fully protected against DOS, CORS, clickjacking, api flooding attacks and still if someone finds a way to attack the site, then there should be some mechanism that if the site is down, it is up automatically.

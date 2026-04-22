@@ -108,7 +108,7 @@ messageSchema.virtual('isFullyRead').get(function () {
 // Method to mark as read
 messageSchema.methods.markAsRead = function (userId: mongoose.Types.ObjectId) {
   const recipient = this.recipients.find(
-    (r) => r.user.toString() === userId.toString()
+    (r: { user: mongoose.Types.ObjectId; readAt?: Date }) => r.user.toString() === userId.toString()
   );
   if (recipient) {
     recipient.readAt = new Date();
@@ -118,7 +118,7 @@ messageSchema.methods.markAsRead = function (userId: mongoose.Types.ObjectId) {
 // Method to check if read by user
 messageSchema.methods.isReadBy = function (userId: mongoose.Types.ObjectId): boolean {
   const recipient = this.recipients.find(
-    (r) => r.user.toString() === userId.toString()
+    (r: { user: mongoose.Types.ObjectId; readAt?: Date }) => r.user.toString() === userId.toString()
   );
   return recipient?.readAt !== undefined;
 };

@@ -1,38 +1,40 @@
-<!-- code-review-graph MCP tools -->
-## MCP Tools: code-review-graph
+# FCS-26 Professional Networking Platform
 
-**IMPORTANT: This project has a knowledge graph. ALWAYS use the
-code-review-graph MCP tools BEFORE using Grep/Glob/Read to explore
-the codebase.** The graph is faster, cheaper (fewer tokens), and gives
-you structural context (callers, dependents, test coverage) that file
-scanning cannot.
+## Project Overview
+Full-stack professional networking platform (LinkedIn-inspired) for the FCS-26 Computer Security course.
 
-### When to use graph tools FIRST
+## Stack
+- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS + Framer Motion + Zustand + React Query
+- **Backend**: Node.js + Express + TypeScript + Socket.IO
+- **Database**: MongoDB (Mongoose) + Redis
+- **Infrastructure**: Docker Compose
 
-- **Exploring code**: `semantic_search_nodes` or `query_graph` instead of Grep
-- **Understanding impact**: `get_impact_radius` instead of manually tracing imports
-- **Code review**: `detect_changes` + `get_review_context` instead of reading entire files
-- **Finding relationships**: `query_graph` with callers_of/callees_of/imports_of/tests_for
-- **Architecture questions**: `get_architecture_overview` + `list_communities`
+## Development
+```bash
+# Start everything (recommended)
+docker-compose up -d
 
-Fall back to Grep/Glob/Read **only** when the graph doesn't cover what you need.
+# Backend local dev
+cd backend && npm run dev
 
-### Key Tools
+# Frontend local dev
+cd frontend && npm run dev
+```
 
-| Tool | Use when |
-|------|----------|
-| `detect_changes` | Reviewing code changes — gives risk-scored analysis |
-| `get_review_context` | Need source snippets for review — token-efficient |
-| `get_impact_radius` | Understanding blast radius of a change |
-| `get_affected_flows` | Finding which execution paths are impacted |
-| `query_graph` | Tracing callers, callees, imports, tests, dependencies |
-| `semantic_search_nodes` | Finding functions/classes by name or keyword |
-| `get_architecture_overview` | Understanding high-level codebase structure |
-| `refactor_tool` | Planning renames, finding dead code |
+## Architecture
+- `backend/src/routes/` — API route handlers
+- `backend/src/models/` — Mongoose schemas
+- `backend/src/middleware/` — auth, validation, security
+- `backend/src/sockets/` — Socket.IO real-time events
+- `frontend/src/pages/` — Page components
+- `frontend/src/components/` — Reusable UI components
+- `frontend/src/stores/` — Zustand state (auth, theme)
+- `frontend/src/services/` — API client + Socket.IO
 
-### Workflow
-
-1. The graph auto-updates on file changes (via hooks).
-2. Use `detect_changes` for code review.
-3. Use `get_affected_flows` to understand impact.
-4. Use `query_graph` pattern="tests_for" to check coverage.
+## Security (OWASP Top 10 Protected)
+- JWT access (15min) + refresh (7d) tokens in HttpOnly cookies
+- Rate limiting: 100/15min general, 5/15min auth
+- bcrypt(12) password hashing
+- Account lockout after 5 failed attempts
+- Helmet CSP/HSTS, CORS whitelist, mongo-sanitize, XSS-clean
+- CSRF double-submit cookie pattern

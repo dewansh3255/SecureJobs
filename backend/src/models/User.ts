@@ -12,8 +12,31 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   profilePicture?: string;
+  coverImage?: string;
   headline?: string;
+  about?: string;
   location?: string;
+  website?: string;
+  industry?: string;
+  skills: string[];
+  experience: Array<{
+    title: string;
+    company: string;
+    location?: string;
+    from: Date;
+    to?: Date;
+    current: boolean;
+    description?: string;
+  }>;
+  education: Array<{
+    school: string;
+    degree: string;
+    field: string;
+    from: Date;
+    to?: Date;
+    current: boolean;
+    description?: string;
+  }>;
   role: 'user' | 'admin' | 'moderator';
   isVerified: boolean;
   isActive: boolean;
@@ -22,6 +45,8 @@ export interface IUser extends Document {
   lockUntil?: Date;
   refreshToken?: string;
   csrfSecret?: string;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   settings: {
     emailNotifications: boolean;
     profileVisibility: 'public' | 'connections' | 'private';
@@ -75,15 +100,58 @@ const userSchema = new Schema<IUser>(
       type: String,
       default: null,
     },
+    coverImage: {
+      type: String,
+      default: null,
+    },
     headline: {
       type: String,
       maxlength: [100, 'Headline must be less than 100 characters'],
       default: 'Professional',
     },
+    about: {
+      type: String,
+      maxlength: [2600, 'About must be less than 2600 characters'],
+      default: '',
+    },
     location: {
       type: String,
       maxlength: [100, 'Location must be less than 100 characters'],
     },
+    website: {
+      type: String,
+      maxlength: [200, 'Website must be less than 200 characters'],
+    },
+    industry: {
+      type: String,
+      maxlength: [100, 'Industry must be less than 100 characters'],
+    },
+    skills: {
+      type: [String],
+      default: [],
+    },
+    experience: [
+      {
+        title: { type: String, required: true, maxlength: 100 },
+        company: { type: String, required: true, maxlength: 100 },
+        location: { type: String, maxlength: 100 },
+        from: { type: Date, required: true },
+        to: { type: Date },
+        current: { type: Boolean, default: false },
+        description: { type: String, maxlength: 2000 },
+      },
+    ],
+    education: [
+      {
+        school: { type: String, required: true, maxlength: 100 },
+        degree: { type: String, required: true, maxlength: 100 },
+        field: { type: String, required: true, maxlength: 100 },
+        from: { type: Date, required: true },
+        to: { type: Date },
+        current: { type: Boolean, default: false },
+        description: { type: String, maxlength: 2000 },
+      },
+    ],
     role: {
       type: String,
       enum: ['user', 'admin', 'moderator'],
@@ -113,6 +181,14 @@ const userSchema = new Schema<IUser>(
     },
     csrfSecret: {
       type: String,
+      select: false,
+    },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpires: {
+      type: Date,
       select: false,
     },
     settings: {

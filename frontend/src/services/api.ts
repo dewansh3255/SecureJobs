@@ -86,57 +86,64 @@ export const apiService = {
 
   // Users
   users: {
+    me: () => api.get('/users/me'),
     get: (id: string) => api.get(`/users/${id}`),
     update: (data: Record<string, unknown>) => api.put('/users/me', data),
-    search: (query: string) => api.get('/users/search', { params: { q: query } }),
-    getProfile: (id: string) => api.get(`/users/${id}/profile`),
+    search: (query: string, page = 1) => api.get('/users/search', { params: { q: query, page } }),
     uploadPhoto: (formData: FormData) =>
-      api.post('/users/photo', formData, {
+      api.post('/users/me/photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }),
+    uploadCover: (formData: FormData) =>
+      api.post('/users/me/cover', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       }),
   },
 
   // Connections
   connections: {
-    send: (userId: string, message?: string) =>
-      api.post('/connections/request', { userId, message }),
+    send: (userId: string) => api.post(`/connections/request/${userId}`),
     accept: (connectionId: string) => api.put(`/connections/${connectionId}/accept`),
     reject: (connectionId: string) => api.put(`/connections/${connectionId}/reject`),
     remove: (connectionId: string) => api.delete(`/connections/${connectionId}`),
     getPending: () => api.get('/connections/pending'),
-    getConnections: (userId: string) => api.get(`/users/${userId}/connections`),
+    getAll: () => api.get('/connections'),
+    getSuggestions: () => api.get('/connections/suggestions'),
   },
 
   // Posts
   posts: {
-    getFeed: (page = 1, limit = 20) =>
+    getFeed: (page = 1, limit = 10) =>
       api.get('/posts/feed', { params: { page, limit } }),
-    create: (data: { content: string; imageUrl?: string }) =>
+    create: (data: { content: string; visibility?: string; tags?: string[] }) =>
       api.post('/posts', data),
-    update: (id: string, data: { content?: string }) => api.put(`/posts/${id}`, data),
+    get: (id: string) => api.get(`/posts/${id}`),
+    update: (id: string, data: { content?: string; visibility?: string }) =>
+      api.put(`/posts/${id}`, data),
     delete: (id: string) => api.delete(`/posts/${id}`),
     react: (id: string, type: string) => api.post(`/posts/${id}/react`, { type }),
-    getComments: (postId: string) => api.get(`/posts/${postId}/comments`),
-    addComment: (postId: string, content: string, parentCommentId?: string) =>
-      api.post(`/posts/${postId}/comments`, { content, parentCommentId }),
-    share: (id: string) => api.post(`/posts/${id}/share`),
+    addComment: (postId: string, content: string) =>
+      api.post(`/posts/${postId}/comments`, { content }),
+    deleteComment: (postId: string, commentId: string) =>
+      api.delete(`/posts/${postId}/comments/${commentId}`),
   },
 
   // Messages
   messages: {
     getConversations: () => api.get('/messages/conversations'),
-    getMessages: (conversationId: string) =>
+    getConversation: (conversationId: string) =>
       api.get(`/messages/conversations/${conversationId}`),
+    createConversation: (participantId: string) =>
+      api.post('/messages/conversations', { participantId }),
     send: (conversationId: string, content: string) =>
-      api.post('/messages', { conversationId, content }),
-    markAsRead: (messageId: string) => api.put(`/messages/${messageId}/read`),
-    createConversation: (participantIds: string[]) =>
-      api.post('/messages/conversations', { participantIds }),
+      api.post(`/messages/conversations/${conversationId}`, { content }),
+    markRead: (conversationId: string) =>
+      api.patch(`/messages/conversations/${conversationId}/read`),
   },
 
   // Jobs
   jobs: {
-    getJobs: (params?: Record<string, string>) =>
+    getJobs: (params?: Record<string, string | number>) =>
       api.get('/jobs', { params }),
     getJob: (id: string) => api.get(`/jobs/${id}`),
     create: (data: Record<string, unknown>) => api.post('/jobs', data),
@@ -145,16 +152,15 @@ export const apiService = {
     delete: (id: string) => api.delete(`/jobs/${id}`),
     apply: (jobId: string, data?: { coverLetter?: string; resumeUrl?: string }) =>
       api.post(`/jobs/${jobId}/apply`, data),
-    getApplications: () => api.get('/jobs/applications'),
+    getMyApplications: () => api.get('/jobs/applications/mine'),
   },
 
   // Notifications
   notifications: {
-    get: (page = 1, limit = 50) =>
+    get: (page = 1, limit = 20) =>
       api.get('/notifications', { params: { page, limit } }),
-    markAsRead: (id: string) => api.put(`/notifications/${id}/read`),
-    markAllAsRead: () => api.put('/notifications/read-all'),
-    delete: (id: string) => api.delete(`/notifications/${id}`),
+    markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
+    markAllAsRead: () => api.patch('/notifications/read-all'),
     getUnreadCount: () => api.get('/notifications/unread-count'),
   },
 };

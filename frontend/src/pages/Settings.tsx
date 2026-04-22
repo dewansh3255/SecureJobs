@@ -12,7 +12,6 @@ import {
   Download,
   Save,
   Moon,
-  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '@stores/authStore';
 import { useTheme } from '@stores/themeStore';
@@ -39,11 +38,6 @@ export default function SettingsPage() {
     showOnlineStatus: true,
     darkMode: theme === 'dark',
   });
-
-  const handleSave = () => {
-    // Save settings logic
-    console.log('Saving settings...', settings);
-  };
 
   return (
     <div className="max-w-5xl mx-auto">

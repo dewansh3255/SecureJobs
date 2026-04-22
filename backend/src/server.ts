@@ -8,7 +8,7 @@ import { Server } from 'socket.io';
 import config from './config';
 import createApp from './app';
 import connectDatabase from './config/database';
-import connectRedis from './config/redis';
+import connectRedis, { getRedisClient } from './config/redis';
 import logger from './utils/logger';
 import { initializeSocketIO } from './sockets';
 
@@ -73,11 +73,10 @@ const gracefulShutdown = (signal: string) => {
 
     // Close database connections
     import('mongoose').then((mongoose) => {
-      mongoose.connection.close(() => {
+      mongoose.connection.close().then(() => {
         logger.info('MongoDB connection closed');
 
         // Close Redis connection
-        const { getRedisClient } = require('./config/redis');
         const redisClient = getRedisClient();
         if (redisClient) {
           redisClient.quit().then(() => {

@@ -26,8 +26,15 @@ export interface IPost extends Document {
   originalPost?: mongoose.Types.ObjectId;
   sharedFrom?: mongoose.Types.ObjectId;
   tags: string[];
+  isDeleted: boolean;
   createdAt: Date;
   updatedAt: Date;
+  addReaction(userId: mongoose.Types.ObjectId, type: string): void;
+  removeReaction(userId: mongoose.Types.ObjectId): void;
+  getTotalReactions(): number;
+  incrementCommentCount(): void;
+  decrementCommentCount(): void;
+  incrementShareCount(): void;
 }
 
 const postSchema = new Schema<IPost>(
@@ -126,6 +133,11 @@ const postSchema = new Schema<IPost>(
         trim: true,
       },
     ],
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -173,7 +185,7 @@ postSchema.methods.removeReaction = function (userId: mongoose.Types.ObjectId) {
 
 // Helper to get total reactions
 postSchema.methods.getTotalReactions = function () {
-  return Object.values(this.reactions).reduce((total, arr) => total + arr.length, 0);
+  return Object.values(this.reactions).reduce((total: number, arr: unknown) => total + (arr as mongoose.Types.ObjectId[]).length, 0);
 };
 
 // Method to increment comment count

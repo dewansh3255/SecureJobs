@@ -3,14 +3,14 @@
  * Login, register, logout, refresh token, password management
  */
 
-import { Router } from 'express';
-import jwt from 'jsonwebtoken';
+import { Router, Request, Response } from 'express';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { asyncHandler, authRateLimiter, protect, emailValidation, passwordValidation } from '../middleware';
 import User from '../models/User';
 import config from '../config';
-import logger from '../utils/logger';
 import { logSecurityEvent } from '../utils/logger';
+import { sendPasswordResetEmail } from '../utils/email';
 
 const router = Router();
 
@@ -21,13 +21,13 @@ const generateTokens = (userId: string) => {
   const accessToken = jwt.sign(
     { id: userId },
     config.jwt.secret,
-    { expiresIn: config.jwt.expiresIn }
+    { expiresIn: config.jwt.expiresIn as any }
   );
 
   const refreshToken = jwt.sign(
     { id: userId },
     config.jwt.refreshSecret,
-    { expiresIn: config.jwt.refreshExpiresIn }
+    { expiresIn: config.jwt.refreshExpiresIn as any }
   );
 
   return { accessToken, refreshToken };
@@ -71,7 +71,7 @@ const clearTokenCookies = (res: any) => {
  * POST /api/auth/register
  * Register a new user
  */
-router.post('/register', authRateLimiter, emailValidation, passwordValidation, asyncHandler(async (req, res) => {
+router.post('/register', authRateLimiter, emailValidation, passwordValidation, asyncHandler(async (req: Request, res: Response) => {
   const { email, password, firstName, lastName } = req.body;
 
   // Check if user already exists
@@ -104,7 +104,7 @@ router.post('/register', authRateLimiter, emailValidation, passwordValidation, a
 
   logSecurityEvent('User registered', { userId: user._id, email });
 
-  res.status(201).json({
+  return res.status(201).json({
     success: true,
     message: 'Account created successfully.',
     data: {
@@ -123,7 +123,7 @@ router.post('/register', authRateLimiter, emailValidation, passwordValidation, a
  * POST /api/auth/login
  * Login user
  */
-router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req, res) => {
+router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   // Find user and include password field
@@ -196,7 +196,7 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req,
 
   logSecurityEvent('User logged in', { userId: user._id, email });
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Login successful.',
     data: {
@@ -221,7 +221,7 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req,
  * POST /api/auth/logout
  * Logout user
  */
-router.post('/logout', protect, asyncHandler(async (req, res) => {
+router.post('/logout', protect, asyncHandler(async (req: Request, res: Response) => {
   if (req.user) {
     await User.findByIdAndUpdate(req.user.id, {
       refreshToken: undefined,
@@ -232,7 +232,7 @@ router.post('/logout', protect, asyncHandler(async (req, res) => {
 
   clearTokenCookies(res);
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Logout successful.',
   });
@@ -242,7 +242,7 @@ router.post('/logout', protect, asyncHandler(async (req, res) => {
  * POST /api/auth/refresh
  * Refresh access token
  */
-router.post('/refresh', asyncHandler(async (req, res) => {
+router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
@@ -285,7 +285,7 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     // Set new cookies
     setTokenCookies(res, accessToken, newRefreshToken);
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Token refreshed successfully.',
     });
@@ -309,7 +309,7 @@ router.post('/refresh', asyncHandler(async (req, res) => {
  * GET /api/auth/me
  * Get current user
  */
-router.get('/me', protect, asyncHandler(async (req, res) => {
+router.get('/me', protect, asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user?.id).select('-password');
 
   if (!user) {
@@ -319,7 +319,7 @@ router.get('/me', protect, asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({
+  return res.json({
     success: true,
     data: {
       user: {
@@ -346,7 +346,7 @@ router.get('/me', protect, asyncHandler(async (req, res) => {
  * POST /api/auth/forgot-password
  * Send password reset email
  */
-router.post('/forgot-password', authRateLimiter, emailValidation, asyncHandler(async (req, res) => {
+router.post('/forgot-password', authRateLimiter, emailValidation, asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });
@@ -361,13 +361,25 @@ router.post('/forgot-password', authRateLimiter, emailValidation, asyncHandler(a
 
   // Generate reset token
   const resetToken = crypto.randomBytes(32).toString('hex');
-  const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-  // TODO: Store hashed reset token and send email
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await user.save({ validateBeforeSave: false });
 
-  logSecurityEvent('Password reset requested', { userId: user._id, email });
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
 
-  res.json({
+  try {
+    await sendPasswordResetEmail(user.email, resetUrl);
+    logSecurityEvent('Password reset email sent', { userId: user._id, email });
+  } catch (err) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    return res.status(500).json({ success: false, message: 'Could not send email. Try again later.' });
+  }
+
+  return res.json({
     success: true,
     message: 'If an account exists with this email, a password reset link has been sent.',
   });
@@ -377,14 +389,37 @@ router.post('/forgot-password', authRateLimiter, emailValidation, asyncHandler(a
  * POST /api/auth/reset-password
  * Reset password with token
  */
-router.post('/reset-password', authRateLimiter, passwordValidation, asyncHandler(async (req, res) => {
+router.post('/reset-password', authRateLimiter, passwordValidation, asyncHandler(async (req: Request, res: Response) => {
   const { token, password } = req.body;
 
-  // TODO: Verify token and update password
+  if (!token) {
+    return res.status(400).json({ success: false, message: 'Reset token is required.' });
+  }
 
-  res.json({
+  const hashedToken = crypto.createHash('sha256').update(token as string).digest('hex');
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'Token is invalid or has expired.' });
+  }
+
+  user.password = password as string;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  // Reset lockout if any
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
+  await user.save();
+
+  logSecurityEvent('Password reset completed', { userId: user._id });
+
+  return res.json({
     success: true,
-    message: 'Password reset successfully.',
+    message: 'Password reset successfully. Please log in.',
   });
 }));
 
