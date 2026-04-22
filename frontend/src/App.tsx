@@ -20,6 +20,7 @@ import SettingsPage from './pages/Settings';
 import NotFoundPage from './pages/NotFound';
 
 import Setup2FAPage from './pages/Setup2FA';
+import AdminPage from './pages/Admin';
 
 // Protected Route
 import ProtectedRoute from './components/auth/ProtectedRoute';
@@ -71,6 +72,7 @@ function App() {
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="profile/:id?" element={<ProfilePage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="admin" element={<AdminPage />} />
               </Route>
 
               {/* 404 */}

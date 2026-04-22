@@ -31,6 +31,7 @@ import postRoutes from './routes/post';
 import messageRoutes from './routes/message';
 import jobRoutes from './routes/job';
 import notificationRoutes from './routes/notification';
+import adminRoutes from './routes/admin';
 
 /**
  * Create and configure Express application
@@ -98,6 +99,7 @@ export const createApp = (): Application => {
   app.use('/api/messages', messageRoutes);
   app.use('/api/jobs', jobRoutes);
   app.use('/api/notifications', notificationRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // Serve uploaded files
   app.use('/uploads', express.static('uploads'));

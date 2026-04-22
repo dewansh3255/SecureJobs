@@ -174,6 +174,22 @@ export const apiService = {
     markAllAsRead: () => api.patch('/notifications/read-all'),
     getUnreadCount: () => api.get('/notifications/unread-count'),
   },
+
+  // Admin (role: admin only)
+  admin: {
+    stats: () => api.get('/admin/stats'),
+    users: (params: object) => api.get('/admin/users', { params }),
+    banUser: (id: string, banned: boolean, reason?: string) =>
+      api.patch(`/admin/users/${id}/ban`, { banned, reason }),
+    changeRole: (id: string, role: string) =>
+      api.patch(`/admin/users/${id}/role`, { role }),
+    deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
+    posts: (params: object) => api.get('/admin/posts', { params }),
+    deletePost: (id: string) => api.delete(`/admin/posts/${id}`),
+    jobs: (params: object) => api.get('/admin/jobs', { params }),
+    deleteJob: (id: string) => api.delete(`/admin/jobs/${id}`),
+    auditLogs: (params: object) => api.get('/admin/audit-logs', { params }),
+  },
 };
 
 export default api;

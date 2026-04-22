@@ -8,6 +8,9 @@ import jwt from 'jsonwebtoken';
 import config from '../config';
 import logger from '../utils/logger';
 import { getRedisClient } from '../config/redis';
+import Message from '../models/Message';
+import Conversation from '../models/Conversation';
+import Notification from '../models/Notification';
 
 interface JwtPayload {
   id: string;
@@ -77,15 +80,67 @@ export const initializeSocketIO = (io: Server) => {
           return callback?.({ success: false, error: 'Not authenticated' });
         }
 
-        // Emit to all participants in the conversation
-        socket.to(`conversation:${data.conversationId}`).emit('message:new', {
-          conversationId: data.conversationId,
-          senderId: userId,
-          content: data.content,
-          createdAt: new Date(),
+        // Verify sender is a participant of this conversation
+        const conversation = await Conversation.findById(data.conversationId).lean();
+        if (!conversation) {
+          return callback?.({ success: false, error: 'Conversation not found' });
+        }
+        const participantIds = conversation.participants.map(String);
+        if (!participantIds.includes(userId)) {
+          return callback?.({ success: false, error: 'Not a participant' });
+        }
+
+        // Persist message to MongoDB
+        const recipients = participantIds
+          .filter((pid) => pid !== userId)
+          .map((pid) => ({ user: pid }));
+
+        const saved = await Message.create({
+          conversation: data.conversationId,
+          sender: userId,
+          recipients,
+          content: data.content.trim(),
+          encrypted: false,
         });
 
-        callback?.({ success: true });
+        // Update conversation's lastMessage + lastMessageAt + messageCount
+        await Conversation.findByIdAndUpdate(data.conversationId, {
+          lastMessage: saved._id,
+          lastMessageAt: saved.createdAt,
+          $inc: { messageCount: 1 },
+        });
+
+        // Populate sender for clients
+        await saved.populate('sender', 'firstName lastName profilePicture');
+
+        // Emit to all participants in the conversation room (including sender)
+        io.to(`conversation:${data.conversationId}`).emit('message:new', {
+          _id: saved._id,
+          conversationId: data.conversationId,
+          sender: saved.sender,
+          content: saved.content,
+          createdAt: saved.createdAt,
+          recipients: saved.recipients,
+        });
+
+        // Push in-app notification to offline recipients
+        for (const pid of participantIds.filter((p) => p !== userId)) {
+          try {
+            await Notification.create({
+              recipient: pid,
+              sender: userId,
+              type: 'message',
+              data: { conversationId: data.conversationId, messageId: String(saved._id) },
+              message: 'sent you a message',
+            });
+            // Deliver real-time notification if recipient is online
+            io.to(`user:${pid}`).emit('notification:new', { type: 'message', senderId: userId });
+          } catch {
+            // Non-critical: notification creation failure should not fail message delivery
+          }
+        }
+
+        callback?.({ success: true, message: saved });
       } catch (error) {
         logger.error('Error sending message:', error);
         callback?.({ success: false, error: 'Failed to send message' });
@@ -116,9 +171,18 @@ export const initializeSocketIO = (io: Server) => {
     // ===========================================
     // Notification Events
     // ===========================================
-    socket.on('notification:read', (data: { notificationId: string }) => {
-      // Handle marking notification as read
-      logger.debug(`Notification ${data.notificationId} marked as read`);
+    socket.on('notification:read', async (data: { notificationId: string }) => {
+      try {
+        const userId = socket.data.userId;
+        if (!userId) return;
+        await Notification.findOneAndUpdate(
+          { _id: data.notificationId, recipient: userId },
+          { read: true, readAt: new Date() }
+        );
+        logger.debug(`Notification ${data.notificationId} marked as read`);
+      } catch (err) {
+        logger.error('Error marking notification read:', err);
+      }
     });
 
     // ===========================================
