@@ -2,12 +2,16 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useEffect } from 'react';
 import axios from 'axios';
+import api from '@services/api';
 
-
-/** Ensure XSRF-TOKEN cookie exists; fetch from server if absent */
+/**
+ * Ensure the XSRF-TOKEN cookie exists.
+ * Uses the `api` instance so the response cookie is set by the same origin.
+ * `/csrf-token` maps to `/api/csrf-token` because api.baseURL is already `/api`.
+ */
 async function ensureCsrfToken(): Promise<void> {
   if (!getCsrfCookie()) {
-    await axios.get('/api/csrf-token');
+    await api.get('/csrf-token');
   }
 }
 
@@ -17,14 +21,6 @@ function getCsrfCookie(): string | null {
   if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
   return null;
 }
-
-// API configuration
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-
-// Configure axios defaults
-axios.defaults.baseURL = API_URL;
-axios.defaults.withCredentials = true;
-axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // Types
 export interface User {
@@ -52,6 +48,7 @@ export interface User {
 interface AuthResponse {
   success: boolean;
   message: string;
+  twoFactorRequired?: boolean;
   data?: {
     user: User;
   };
@@ -92,10 +89,8 @@ const useAuthStore = create<AuthStore>()(
         await ensureCsrfToken();
         set({ isLoading: true, error: null, twoFactorRequired: false });
         try {
-          const response = await axios.post<AuthResponse & { twoFactorRequired?: boolean }>('/auth/login', {
-            email,
-            password,
-          });
+          // api instance has the CSRF interceptor — header is attached automatically
+          const response = await api.post<AuthResponse>('/auth/login', { email, password });
 
           if (response.data.twoFactorRequired) {
             set({ twoFactorRequired: true, isLoading: false });
@@ -104,7 +99,7 @@ const useAuthStore = create<AuthStore>()(
 
           if (response.data.success) {
             set({
-              user: response.data.data?.user || null,
+              user: response.data.data?.user ?? null,
               isAuthenticated: true,
               isLoading: false,
               twoFactorRequired: false,
@@ -115,7 +110,7 @@ const useAuthStore = create<AuthStore>()(
           }
         } catch (error) {
           const message =
-            error instanceof axios.AxiosError
+            axios.isAxiosError(error)
               ? error.response?.data?.message || 'Login failed'
               : 'An unexpected error occurred';
           set({ error: message, isLoading: false });
@@ -127,10 +122,10 @@ const useAuthStore = create<AuthStore>()(
         await ensureCsrfToken();
         set({ isLoading: true, error: null });
         try {
-          const response = await axios.post<AuthResponse>('/auth/2fa/validate', { code });
+          const response = await api.post<AuthResponse>('/auth/2fa/validate', { code });
           if (response.data.success) {
             set({
-              user: response.data.data?.user || null,
+              user: response.data.data?.user ?? null,
               isAuthenticated: true,
               isLoading: false,
               twoFactorRequired: false,
@@ -141,7 +136,7 @@ const useAuthStore = create<AuthStore>()(
           }
         } catch (error) {
           const message =
-            error instanceof axios.AxiosError
+            axios.isAxiosError(error)
               ? error.response?.data?.message || 'Invalid code'
               : 'An unexpected error occurred';
           set({ error: message, isLoading: false });
@@ -153,11 +148,11 @@ const useAuthStore = create<AuthStore>()(
         await ensureCsrfToken();
         set({ isLoading: true, error: null });
         try {
-          const response = await axios.post<AuthResponse>('/auth/register', data);
+          const response = await api.post<AuthResponse>('/auth/register', data);
 
           if (response.data.success) {
             set({
-              user: response.data.data?.user || null,
+              user: response.data.data?.user ?? null,
               isAuthenticated: true,
               isLoading: false,
               error: null,
@@ -167,7 +162,7 @@ const useAuthStore = create<AuthStore>()(
           }
         } catch (error) {
           const message =
-            error instanceof axios.AxiosError
+            axios.isAxiosError(error)
               ? error.response?.data?.message || 'Registration failed'
               : 'An unexpected error occurred';
           set({ error: message, isLoading: false });
@@ -177,7 +172,7 @@ const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         try {
-          await axios.post('/auth/logout');
+          await api.post('/auth/logout');
         } catch (error) {
           console.error('Logout error:', error);
         } finally {
@@ -194,11 +189,11 @@ const useAuthStore = create<AuthStore>()(
       refreshUser: async () => {
         set({ isLoading: true });
         try {
-          const response = await axios.get<AuthResponse>('/auth/me');
+          const response = await api.get<AuthResponse>('/auth/me');
 
           if (response.data.success) {
             set({
-              user: response.data.data?.user || null,
+              user: response.data.data?.user ?? null,
               isAuthenticated: true,
               isLoading: false,
               error: null,
@@ -228,7 +223,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshUser = useAuthStore((state) => state.refreshUser);
 
   useEffect(() => {
-    // Refresh user data on mount
     refreshUser();
   }, [refreshUser]);
 
@@ -256,3 +250,4 @@ export const useAuth = () => {
 };
 
 export default useAuthStore;
+
