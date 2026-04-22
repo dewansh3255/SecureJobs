@@ -10,6 +10,7 @@
 
 import { Router, Request, Response } from 'express';
 import { protect } from '../middleware/auth';
+import { connectionRateLimiter } from '../middleware/security';
 import Connection from '../models/Connection';
 import User from '../models/User';
 import Notification from '../models/Notification';
@@ -20,7 +21,7 @@ const router = Router();
 // ──────────────────────────────────────────────
 // POST /connections/request/:userId
 // ──────────────────────────────────────────────
-router.post('/request/:userId', protect, async (req: Request, res: Response) => {
+router.post('/request/:userId', protect, connectionRateLimiter, async (req: Request, res: Response) => {
   try {
     const requesterId = req.user!.id;
     const recipientId = req.params.userId;

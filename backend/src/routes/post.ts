@@ -13,6 +13,7 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { protect, optionalAuth } from '../middleware/auth';
+import { postRateLimiter } from '../middleware/security';
 import Post from '../models/Post';
 import Comment from '../models/Comment';
 import Notification from '../models/Notification';
@@ -99,7 +100,7 @@ router.get('/feed', protect, async (req: Request, res: Response) => {
 // ──────────────────────────────────────────────
 // POST /posts
 // ──────────────────────────────────────────────
-router.post('/', protect, async (req: Request, res: Response) => {
+router.post('/', protect, postRateLimiter, async (req: Request, res: Response) => {
   try {
     const { content, visibility, tags } = req.body;
 

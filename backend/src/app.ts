@@ -7,7 +7,6 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
-import csurf from 'csurf';
 import { corsOptions } from './middleware/security';
 import {
   helmetMiddleware,
@@ -20,6 +19,7 @@ import {
 } from './middleware';
 import { errorHandler } from './middleware';
 import logger from './utils/logger';
+import { csrfToken, csrfProtect } from './middleware/csrf';
 import config from './config';
 
 // Route imports
@@ -80,32 +80,16 @@ export const createApp = (): Application => {
   app.use(requestLogger);
 
   // ===========================================
-  // CSRF Protection (for state-changing requests)
+  // CSRF Protection (custom double-submit signed cookie)
   // ===========================================
-  app.use(
-    csurf({
-      cookie: {
-        httpOnly: true,
-        secure: config.server.isProduction,
-        sameSite: 'strict',
-      },
-    })
-  );
-
-  // Add CSRF token to response
-  app.use((req, res, next) => {
-    res.cookie('XSRF-TOKEN', (req as any).csrfToken(), {
-      httpOnly: false,
-      secure: config.server.isProduction,
-      sameSite: 'strict',
-      maxAge: 3600000, // 1 hour
-    });
-    next();
-  });
+  app.use(csrfToken);      // issue XSRF-TOKEN cookie on every response
+  app.use(csrfProtect);    // enforce on POST/PUT/PATCH/DELETE
 
   // ===========================================
   // API Routes
   // ===========================================
+  // CSRF token endpoint (GET — safe, no CSRF check needed)
+  app.get('/api/csrf-token', (_req, res) => res.json({ success: true }));
   app.use('/api/health', healthRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);

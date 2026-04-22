@@ -14,6 +14,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
 import { protect, optionalAuth } from '../middleware/auth';
+import { uploadRateLimiter, searchRateLimiter } from '../middleware/security';
 import User from '../models/User';
 import logger, { logSecurityEvent } from '../utils/logger';
 
@@ -118,7 +119,7 @@ router.put('/me', protect, async (req: Request, res: Response) => {
 // ──────────────────────────────────────────────
 // GET /users/search — search users by name/headline
 // ──────────────────────────────────────────────
-router.get('/search', optionalAuth, async (req: Request, res: Response) => {
+router.get('/search', optionalAuth, searchRateLimiter, async (req: Request, res: Response) => {
   try {
     const query = String(req.query.q || '').trim().slice(0, 100);
     if (!query) {
@@ -180,7 +181,7 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 // ──────────────────────────────────────────────
 // POST /users/me/photo — upload profile picture
 // ──────────────────────────────────────────────
-router.post('/me/photo', protect, upload.single('photo'), async (req: Request, res: Response) => {
+router.post('/me/photo', protect, uploadRateLimiter, upload.single('photo'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No image file provided' });
@@ -208,7 +209,7 @@ router.post('/me/photo', protect, upload.single('photo'), async (req: Request, r
 // ──────────────────────────────────────────────
 // POST /users/me/cover — upload cover image
 // ──────────────────────────────────────────────
-router.post('/me/cover', protect, upload.single('cover'), async (req: Request, res: Response) => {
+router.post('/me/cover', protect, uploadRateLimiter, upload.single('cover'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No image file provided' });

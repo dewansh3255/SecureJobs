@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import crypto from 'crypto';
-import { asyncHandler, authRateLimiter, protect, emailValidation, passwordValidation } from '../middleware';
+import { asyncHandler, authRateLimiter, protect, passwordResetRateLimiter, emailValidation, passwordValidation } from '../middleware';
 import User from '../models/User';
 import config from '../config';
 import { logSecurityEvent } from '../utils/logger';
@@ -346,7 +346,7 @@ router.get('/me', protect, asyncHandler(async (req: Request, res: Response) => {
  * POST /api/auth/forgot-password
  * Send password reset email
  */
-router.post('/forgot-password', authRateLimiter, emailValidation, asyncHandler(async (req: Request, res: Response) => {
+router.post('/forgot-password', authRateLimiter, passwordResetRateLimiter, emailValidation, asyncHandler(async (req: Request, res: Response) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });

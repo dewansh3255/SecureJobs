@@ -205,3 +205,87 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
 
   next();
 };
+
+/**
+ * Rate Limiter - File Upload
+ * Max 20 uploads per hour per IP
+ */
+export const uploadRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: 'Too many uploads. Try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate Limiter - Post Creation
+ * Max 30 posts per hour per IP
+ */
+export const postRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: { success: false, message: 'Too many posts. Slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate Limiter - Connection Requests
+ * Max 50 connection requests per hour per IP
+ */
+export const connectionRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 50,
+  message: { success: false, message: 'Too many connection requests.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate Limiter - Search
+ * Max 60 searches per minute per IP
+ */
+export const searchRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { success: false, message: 'Search rate limit exceeded.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate Limiter - Job Apply
+ * Max 10 applications per hour per IP
+ */
+export const jobApplyRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: 'Too many job applications. Try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate Limiter - Password Reset
+ * Max 3 password reset emails per hour per IP
+ */
+export const passwordResetRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { success: false, message: 'Too many password reset requests. Try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate Limiter - Messaging
+ * Max 200 messages per hour per IP (prevents spam)
+ */
+export const messagingRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 200,
+  message: { success: false, message: 'Messaging rate limit exceeded.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

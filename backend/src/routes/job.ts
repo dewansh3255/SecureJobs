@@ -4,6 +4,7 @@
 
 import { Router, Request, Response } from 'express';
 import { protect, optionalAuth } from '../middleware/auth';
+import { jobApplyRateLimiter } from '../middleware/security';
 import Job from '../models/Job';
 import Application from '../models/Application';
 import Notification from '../models/Notification';
@@ -179,7 +180,7 @@ router.delete('/:id', protect, async (req: Request, res: Response) => {
 // ──────────────────────────────────────────────
 // POST /jobs/:id/apply
 // ──────────────────────────────────────────────
-router.post('/:id/apply', protect, async (req: Request, res: Response) => {
+router.post('/:id/apply', protect, jobApplyRateLimiter, async (req: Request, res: Response) => {
   try {
     const job = await Job.findOne({ _id: req.params.id, status: 'active' });
     if (!job) return res.status(404).json({ success: false, message: 'Job not found or no longer active' });

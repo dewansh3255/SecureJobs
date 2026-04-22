@@ -9,6 +9,7 @@
 
 import { Router, Request, Response } from 'express';
 import { protect } from '../middleware/auth';
+import { messagingRateLimiter } from '../middleware/security';
 import Conversation from '../models/Conversation';
 import Message from '../models/Message';
 import logger from '../utils/logger';
@@ -141,7 +142,7 @@ router.get('/conversations/:id', protect, async (req: Request, res: Response) =>
 // ──────────────────────────────────────────────
 // POST /messages/conversations/:id — send message
 // ──────────────────────────────────────────────
-router.post('/conversations/:id', protect, async (req: Request, res: Response) => {
+router.post('/conversations/:id', protect, messagingRateLimiter, async (req: Request, res: Response) => {
   try {
     const conversation = await Conversation.findOne({
       _id: req.params.id,

@@ -3,6 +3,21 @@ import { persist } from 'zustand/middleware';
 import { useEffect } from 'react';
 import axios from 'axios';
 
+
+/** Ensure XSRF-TOKEN cookie exists; fetch from server if absent */
+async function ensureCsrfToken(): Promise<void> {
+  if (!getCsrfCookie()) {
+    await axios.get('/api/csrf-token');
+  }
+}
+
+function getCsrfCookie(): string | null {
+  const v = `; ${document.cookie}`;
+  const parts = v.split('; XSRF-TOKEN=');
+  if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
+  return null;
+}
+
 // API configuration
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -70,6 +85,7 @@ const useAuthStore = create<AuthStore>()(
       error: null,
 
       login: async (email: string, password: string) => {
+        await ensureCsrfToken();
         set({ isLoading: true, error: null });
         try {
           const response = await axios.post<AuthResponse>('/auth/login', {
@@ -98,6 +114,7 @@ const useAuthStore = create<AuthStore>()(
       },
 
       register: async (data: RegisterData) => {
+        await ensureCsrfToken();
         set({ isLoading: true, error: null });
         try {
           const response = await axios.post<AuthResponse>('/auth/register', data);
