@@ -47,6 +47,11 @@ export interface IUser extends Document {
   csrfSecret?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  twoFactorSecret?: string;
+  twoFactorEnabled: boolean;
+  twoFactorBackupCodes?: string[];
+  emailVerificationToken?: string;
+  emailVerificationExpires?: Date;
   settings: {
     emailNotifications: boolean;
     profileVisibility: 'public' | 'connections' | 'private';
@@ -188,6 +193,26 @@ const userSchema = new Schema<IUser>(
       select: false,
     },
     resetPasswordExpires: {
+      type: Date,
+      select: false,
+    },
+    twoFactorSecret: {
+      type: String,
+      select: false,
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorBackupCodes: {
+      type: [String],
+      select: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
       type: Date,
       select: false,
     },

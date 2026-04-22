@@ -109,7 +109,9 @@ services:
 
   # Nginx - Reverse Proxy (HTTPS termination, DDoS protection, Clickjacking headers)
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: fcs26-nginx
     restart: unless-stopped
     ports:
@@ -123,16 +125,6 @@ services:
     depends_on:
       - backend
       - frontend
-    command: >
-      sh -c "apk add --no-cache openssl &&
-             if [ ! -f /etc/nginx/ssl/cert.pem ]; then
-               openssl req -x509 -nodes -days 365 -newkey rsa:2048
-               -keyout /etc/nginx/ssl/key.pem
-               -out /etc/nginx/ssl/cert.pem
-               -subj '/CN=localhost'
-               -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' 2>/dev/null;
-             fi &&
-             nginx -g 'daemon off;'"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "--no-check-certificate", "https://localhost/api/health"]
       interval: 30s

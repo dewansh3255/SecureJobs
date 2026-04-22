@@ -38,6 +38,7 @@ export interface User {
   profilePicture?: string;
   role: 'user' | 'admin' | 'moderator';
   isVerified: boolean;
+  twoFactorEnabled: boolean;
   settings: {
     emailNotifications: boolean;
     profileVisibility: 'public' | 'connections' | 'private';
@@ -60,8 +61,10 @@ interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  twoFactorRequired: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  validate2fa: (code: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -82,22 +85,29 @@ const useAuthStore = create<AuthStore>()(
       user: null,
       isAuthenticated: false,
       isLoading: true,
+      twoFactorRequired: false,
       error: null,
 
       login: async (email: string, password: string) => {
         await ensureCsrfToken();
-        set({ isLoading: true, error: null });
+        set({ isLoading: true, error: null, twoFactorRequired: false });
         try {
-          const response = await axios.post<AuthResponse>('/auth/login', {
+          const response = await axios.post<AuthResponse & { twoFactorRequired?: boolean }>('/auth/login', {
             email,
             password,
           });
+
+          if (response.data.twoFactorRequired) {
+            set({ twoFactorRequired: true, isLoading: false });
+            return;
+          }
 
           if (response.data.success) {
             set({
               user: response.data.data?.user || null,
               isAuthenticated: true,
               isLoading: false,
+              twoFactorRequired: false,
               error: null,
             });
           } else {
@@ -107,6 +117,32 @@ const useAuthStore = create<AuthStore>()(
           const message =
             error instanceof axios.AxiosError
               ? error.response?.data?.message || 'Login failed'
+              : 'An unexpected error occurred';
+          set({ error: message, isLoading: false });
+          throw new Error(message);
+        }
+      },
+
+      validate2fa: async (code: string) => {
+        await ensureCsrfToken();
+        set({ isLoading: true, error: null });
+        try {
+          const response = await axios.post<AuthResponse>('/auth/2fa/validate', { code });
+          if (response.data.success) {
+            set({
+              user: response.data.data?.user || null,
+              isAuthenticated: true,
+              isLoading: false,
+              twoFactorRequired: false,
+              error: null,
+            });
+          } else {
+            throw new Error(response.data.message || '2FA validation failed');
+          }
+        } catch (error) {
+          const message =
+            error instanceof axios.AxiosError
+              ? error.response?.data?.message || 'Invalid code'
               : 'An unexpected error occurred';
           set({ error: message, isLoading: false });
           throw new Error(message);
@@ -149,6 +185,7 @@ const useAuthStore = create<AuthStore>()(
             user: null,
             isAuthenticated: false,
             isLoading: false,
+            twoFactorRequired: false,
             error: null,
           });
         }
@@ -200,17 +237,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 // Custom hook for using auth
 export const useAuth = () => {
-  const { user, isAuthenticated, isLoading, error, login, register, logout, clearError } =
+  const { user, isAuthenticated, isLoading, twoFactorRequired, error, login, validate2fa, register, logout, refreshUser, clearError } =
     useAuthStore();
 
   return {
     user,
     isAuthenticated,
     isLoading,
+    twoFactorRequired,
     error,
     login,
+    validate2fa,
     register,
     logout,
+    refreshUser,
     clearError,
   };
 };

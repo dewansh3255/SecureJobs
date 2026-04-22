@@ -6,11 +6,13 @@
 import { Router, Request, Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import crypto from 'crypto';
+import QRCode from 'qrcode';
 import { asyncHandler, authRateLimiter, protect, passwordResetRateLimiter, emailValidation, passwordValidation } from '../middleware';
 import User from '../models/User';
 import config from '../config';
 import { logSecurityEvent } from '../utils/logger';
-import { sendPasswordResetEmail } from '../utils/email';
+import { sendPasswordResetEmail, sendVerificationEmail } from '../utils/email';
+import { generateTOTPSecret, generateTOTPUri, verifyTOTP } from '../utils/totp';
 
 const router = Router();
 
@@ -92,6 +94,20 @@ router.post('/register', authRateLimiter, emailValidation, passwordValidation, a
     csrfSecret: crypto.randomBytes(32).toString('hex'),
   });
 
+  // Send email verification (fire-and-forget)
+  try {
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const hashedVerifyToken = crypto.createHash('sha256').update(verifyToken).digest('hex');
+    await User.findByIdAndUpdate(user._id, {
+      emailVerificationToken: hashedVerifyToken,
+      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24hrs
+    });
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verifyToken}`;
+    await sendVerificationEmail(user.email, verifyUrl);
+  } catch (_e) {
+    // Non-blocking — user can still use the account
+  }
+
   // Generate tokens
   const { accessToken, refreshToken } = generateTokens(user._id.toString());
 
@@ -121,13 +137,13 @@ router.post('/register', authRateLimiter, emailValidation, passwordValidation, a
 
 /**
  * POST /api/auth/login
- * Login user
+ * Login user — if 2FA enabled, returns twoFactorRequired=true
  */
 router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   // Find user and include password field
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email }).select('+password +twoFactorSecret');
 
   if (!user) {
     logSecurityEvent('Login attempt - user not found', { email, ip: req.ip }, 'warn');
@@ -159,18 +175,13 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req:
   const isPasswordValid = await user.comparePassword(password);
 
   if (!isPasswordValid) {
-    // Increment login attempts
     user.loginAttempts += 1;
-
-    // Lock account after 5 failed attempts
     if (user.loginAttempts >= 5) {
-      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
       user.loginAttempts = 0;
       logSecurityEvent('Account locked - too many failed attempts', { userId: user._id, email }, 'warn');
     }
-
     await user.save();
-
     logSecurityEvent('Login attempt - invalid password', { userId: user._id, email }, 'warn');
     return res.status(401).json({
       success: false,
@@ -178,20 +189,40 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req:
     });
   }
 
-  // Reset login attempts and update last login
+  // Reset login attempts
   user.loginAttempts = 0;
   user.lockUntil = undefined;
+
+  // If 2FA is enabled, issue a short-lived pending token instead of full JWTs
+  if (user.twoFactorEnabled) {
+    user.lastLogin = new Date();
+    await user.save();
+
+    const tfToken = jwt.sign(
+      { id: user._id.toString(), twoFactorPending: true },
+      config.jwt.secret,
+      { expiresIn: '5m' }
+    );
+    res.cookie('tfToken', tfToken, {
+      httpOnly: true,
+      secure: config.server.isProduction,
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+    logSecurityEvent('Login - 2FA required', { userId: user._id, email });
+    return res.json({
+      success: true,
+      twoFactorRequired: true,
+      message: 'Please enter your two-factor authentication code.',
+    });
+  }
+
   user.lastLogin = new Date();
   await user.save();
 
-  // Generate tokens
   const { accessToken, refreshToken } = generateTokens(user._id.toString());
-
-  // Save refresh token
   user.refreshToken = refreshToken;
   await user.save();
-
-  // Set cookies
   setTokenCookies(res, accessToken, refreshToken);
 
   logSecurityEvent('User logged in', { userId: user._id, email });
@@ -208,6 +239,7 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req:
         fullName: user.getFullName(),
         headline: user.headline,
         profilePicture: user.profilePicture,
+        twoFactorEnabled: user.twoFactorEnabled,
       },
     },
   });
@@ -333,6 +365,7 @@ router.get('/me', protect, asyncHandler(async (req: Request, res: Response) => {
         profilePicture: user.profilePicture,
         role: user.role,
         isVerified: user.isVerified,
+        twoFactorEnabled: user.twoFactorEnabled,
         settings: user.settings,
         followers: user.followers.length,
         following: user.following.length,
@@ -421,6 +454,273 @@ router.post('/reset-password', authRateLimiter, passwordValidation, asyncHandler
     success: true,
     message: 'Password reset successfully. Please log in.',
   });
+}));
+
+// ===========================================
+// Two-Factor Authentication Routes
+// ===========================================
+
+/**
+ * POST /api/auth/2fa/validate
+ * Second step of login when 2FA is enabled
+ */
+router.post('/2fa/validate', authRateLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const tfToken = req.cookies.tfToken;
+  const { code } = req.body;
+
+  if (!tfToken) {
+    return res.status(401).json({ success: false, message: 'No pending 2FA session.' });
+  }
+  if (!code) {
+    return res.status(400).json({ success: false, message: 'Verification code is required.' });
+  }
+
+  let decoded: JwtPayload;
+  try {
+    decoded = jwt.verify(tfToken, config.jwt.secret) as JwtPayload;
+  } catch {
+    res.clearCookie('tfToken');
+    return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+  }
+
+  if (!decoded.twoFactorPending) {
+    return res.status(401).json({ success: false, message: 'Invalid session type.' });
+  }
+
+  const user = await User.findById(decoded.id).select('+twoFactorSecret +twoFactorBackupCodes');
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'User not found.' });
+  }
+
+  // Verify TOTP code
+  const isValid = verifyTOTP(String(code), user.twoFactorSecret!);
+
+  // Also check backup codes
+  let usedBackupCode = false;
+  if (!isValid && user.twoFactorBackupCodes) {
+    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
+    const idx = user.twoFactorBackupCodes.indexOf(codeHash);
+    if (idx !== -1) {
+      user.twoFactorBackupCodes.splice(idx, 1);
+      await user.save();
+      usedBackupCode = true;
+    }
+  }
+
+  if (!isValid && !usedBackupCode) {
+    logSecurityEvent('2FA validation failed', { userId: user._id }, 'warn');
+    return res.status(401).json({ success: false, message: 'Invalid verification code.' });
+  }
+
+  res.clearCookie('tfToken');
+
+  const { accessToken, refreshToken } = generateTokens(user._id.toString());
+  user.refreshToken = refreshToken;
+  user.lastLogin = new Date();
+  await user.save();
+  setTokenCookies(res, accessToken, refreshToken);
+
+  logSecurityEvent('User logged in with 2FA', { userId: user._id });
+
+  return res.json({
+    success: true,
+    message: 'Login successful.',
+    data: {
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.getFullName(),
+        headline: user.headline,
+        profilePicture: user.profilePicture,
+        twoFactorEnabled: user.twoFactorEnabled,
+      },
+    },
+  });
+}));
+
+/**
+ * GET /api/auth/2fa/setup
+ * Generate a TOTP secret + QR code for the logged-in user
+ */
+router.get('/2fa/setup', protect, asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user!.id);
+  if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+  if (user.twoFactorEnabled) {
+    return res.status(400).json({ success: false, message: '2FA is already enabled on this account.' });
+  }
+
+  // Generate new secret
+  const secret = generateTOTPSecret();
+  const appName = 'FCS-26 Network';
+  const otpAuthUrl = generateTOTPUri(user.email, secret, appName);
+
+  // Generate QR code as base64 data URL
+  const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
+
+  // Save secret temporarily (not yet enabled — confirmed on POST /2fa/enable)
+  await User.findByIdAndUpdate(user._id, { twoFactorSecret: secret });
+
+  return res.json({
+    success: true,
+    data: {
+      secret,
+      qrCode: qrCodeDataUrl,
+      manualEntry: {
+        accountName: user.email,
+        issuer: appName,
+        secret,
+      },
+    },
+  });
+}));
+
+/**
+ * POST /api/auth/2fa/enable
+ * Confirm the TOTP setup with a valid code, generate backup codes
+ */
+router.post('/2fa/enable', protect, asyncHandler(async (req: Request, res: Response) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, message: 'Verification code is required.' });
+
+  const user = await User.findById(req.user!.id).select('+twoFactorSecret');
+  if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+  if (!user.twoFactorSecret) {
+    return res.status(400).json({ success: false, message: 'Please call /2fa/setup first.' });
+  }
+  if (user.twoFactorEnabled) {
+    return res.status(400).json({ success: false, message: '2FA is already enabled.' });
+  }
+
+  const isValid = verifyTOTP(String(code), user.twoFactorSecret!);
+  let validBackup = false;
+  if (!isValid && user.twoFactorBackupCodes) {
+    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
+    validBackup = user.twoFactorBackupCodes.includes(codeHash);
+  }
+
+  if (!isValid && !validBackup) {
+    return res.status(400).json({ success: false, message: 'Invalid verification code. Please try again.' });
+  }
+
+  // Generate 8 backup codes (hashed for storage)
+  const backupCodes: string[] = [];
+  const hashedCodes: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    const raw = crypto.randomBytes(4).toString('hex').toUpperCase();
+    backupCodes.push(raw);
+    hashedCodes.push(crypto.createHash('sha256').update(raw).digest('hex'));
+  }
+
+  user.twoFactorEnabled = true;
+  user.twoFactorBackupCodes = hashedCodes;
+  await user.save();
+
+  logSecurityEvent('2FA enabled', { userId: user._id });
+
+  return res.json({
+    success: true,
+    message: '2FA has been enabled successfully.',
+    data: {
+      backupCodes, // shown ONCE — user must save them
+    },
+  });
+}));
+
+/**
+ * POST /api/auth/2fa/disable
+ * Disable 2FA — requires current TOTP code or backup code
+ */
+router.post('/2fa/disable', protect, asyncHandler(async (req: Request, res: Response) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, message: 'Verification code is required.' });
+
+  const user = await User.findById(req.user!.id).select('+twoFactorSecret +twoFactorBackupCodes');
+  if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+  if (!user.twoFactorEnabled) {
+    return res.status(400).json({ success: false, message: '2FA is not enabled on this account.' });
+  }
+
+  const isValid = verifyTOTP(String(code), user.twoFactorSecret!);
+  let validBackup = false;
+  if (!isValid && user.twoFactorBackupCodes) {
+    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
+    validBackup = user.twoFactorBackupCodes.includes(codeHash);
+  }
+
+  if (!isValid && !validBackup) {
+    return res.status(401).json({ success: false, message: 'Invalid verification code.' });
+  }
+
+  user.twoFactorEnabled = false;
+  user.twoFactorSecret = undefined;
+  user.twoFactorBackupCodes = [];
+  await user.save();
+
+  logSecurityEvent('2FA disabled', { userId: user._id }, 'warn');
+
+  return res.json({ success: true, message: '2FA has been disabled.' });
+}));
+
+// ===========================================
+// Email Verification Routes
+// ===========================================
+
+/**
+ * GET /api/auth/verify-email
+ * Verify email with token from verification link
+ */
+router.get('/verify-email', asyncHandler(async (req: Request, res: Response) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ success: false, message: 'Verification token is required.' });
+
+  const hashedToken = crypto.createHash('sha256').update(token as string).digest('hex');
+  const user = await User.findOne({
+    emailVerificationToken: hashedToken,
+    emailVerificationExpires: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'Token is invalid or has expired.' });
+  }
+
+  user.isVerified = true;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpires = undefined;
+  await user.save();
+
+  logSecurityEvent('Email verified', { userId: user._id });
+
+  return res.json({ success: true, message: 'Email verified successfully.' });
+}));
+
+/**
+ * POST /api/auth/resend-verification
+ * Resend email verification link
+ */
+router.post('/resend-verification', protect, asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user!.id);
+  if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+  if (user.isVerified) {
+    return res.status(400).json({ success: false, message: 'Email is already verified.' });
+  }
+
+  const verifyToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(verifyToken).digest('hex');
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await user.save({ validateBeforeSave: false });
+
+  const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verifyToken}`;
+  try {
+    await sendVerificationEmail(user.email, verifyUrl);
+  } catch {
+    return res.status(500).json({ success: false, message: 'Could not send email. Try again later.' });
+  }
+
+  return res.json({ success: true, message: 'Verification email resent.' });
 }));
 
 export default router;
