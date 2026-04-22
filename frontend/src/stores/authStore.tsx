@@ -138,6 +138,7 @@ const useAuthStore = create<AuthStore>()(
       },
 
       refreshUser: async () => {
+        set({ isLoading: true });
         try {
           const response = await axios.get<AuthResponse>('/auth/me');
 
@@ -145,13 +146,14 @@ const useAuthStore = create<AuthStore>()(
             set({
               user: response.data.data?.user || null,
               isAuthenticated: true,
+              isLoading: false,
               error: null,
             });
           } else {
-            set({ user: null, isAuthenticated: false });
+            set({ user: null, isAuthenticated: false, isLoading: false });
           }
-        } catch (error) {
-          set({ user: null, isAuthenticated: false });
+        } catch {
+          set({ user: null, isAuthenticated: false, isLoading: false });
         }
       },
 
