@@ -23,11 +23,15 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'http://backend:5000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/uploads': {
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:5000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://backend:5000',
+        target: process.env.VITE_WS_URL || 'ws://localhost:5000',
         ws: true,
       },
     },

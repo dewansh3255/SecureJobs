@@ -92,6 +92,7 @@ services:
       NODE_ENV: development
       VITE_API_URL: ""
       VITE_WS_URL: ""
+      VITE_BACKEND_URL: "http://backend:5000"
     volumes: []
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
