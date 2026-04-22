@@ -86,6 +86,13 @@ export const apiService = {
     forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
     resetPassword: (token: string, password: string) =>
       api.post('/auth/reset-password', { token, password }),
+    // 2FA
+    twoFASetup: () => api.get('/auth/2fa/setup'),
+    twoFAEnable: (code: string) => api.post('/auth/2fa/enable', { code }),
+    twoFADisable: (code: string) => api.post('/auth/2fa/disable', { code }),
+    twoFAValidate: (code: string) => api.post('/auth/2fa/validate', { code }),
+    verifyEmail: (token: string) => api.get(`/auth/verify-email?token=${token}`),
+    resendVerification: () => api.post('/auth/resend-verification'),
   },
 
   // Users

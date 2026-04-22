@@ -132,7 +132,7 @@ router.get('/search', optionalAuth, searchRateLimiter, async (req: Request, res:
 
     const searchRegex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
-    const users = await User.find({
+    const filter: Record<string, unknown> = {
       isActive: true,
       $or: [
         { firstName: searchRegex },
@@ -140,7 +140,14 @@ router.get('/search', optionalAuth, searchRateLimiter, async (req: Request, res:
         { headline: searchRegex },
         { industry: searchRegex },
       ],
-    })
+    };
+
+    // Never return the requesting user in search results
+    if (req.user?.id) {
+      filter._id = { $ne: req.user.id };
+    }
+
+    const users = await User.find(filter)
       .select('firstName lastName profilePicture headline location industry')
       .skip(skip)
       .limit(limit)

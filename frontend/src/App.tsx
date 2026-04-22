@@ -19,6 +19,8 @@ import ProfilePage from './pages/Profile';
 import SettingsPage from './pages/Settings';
 import NotFoundPage from './pages/NotFound';
 
+import Setup2FAPage from './pages/Setup2FA';
+
 // Protected Route
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
@@ -42,6 +44,16 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+
+              {/* 2FA Setup — needs auth, but NOT the 2FA guard (that's for subsequent visits) */}
+              <Route
+                path="/setup-2fa"
+                element={
+                  <ProtectedRoute>
+                    <Setup2FAPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected Routes */}
               <Route

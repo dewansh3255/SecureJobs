@@ -28,8 +28,8 @@ export default function RegisterPage() {
 
     try {
       await register(formData);
-      toast.success('Account created successfully!');
-      navigate('/', { replace: true });
+      // Navigate to mandatory 2FA setup — the app won't be accessible until 2FA is configured
+      navigate('/setup-2fa', { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {
