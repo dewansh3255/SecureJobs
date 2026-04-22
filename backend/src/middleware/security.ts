@@ -65,6 +65,11 @@ export const apiRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip session-maintenance and CSRF-preflight endpoints so they never eat quota
+  skip: (req) => {
+    const safe = ['/api/csrf-token', '/api/auth/me', '/api/auth/refresh', '/api/health'];
+    return safe.some((path) => req.path === path || req.originalUrl === path);
+  },
   keyGenerator: (req) => {
     return req.ip || 'unknown';
   },
@@ -95,6 +100,11 @@ export const authRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Never consume auth-quota for session maintenance
+  skip: (req) => {
+    const noLimit = ['/api/auth/me', '/api/auth/refresh', '/api/csrf-token'];
+    return noLimit.some((p) => req.originalUrl === p);
+  },
   keyGenerator: (req) => {
     return req.ip || 'unknown';
   },

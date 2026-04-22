@@ -48,8 +48,12 @@ api.interceptors.response.use(
         // Retry original request
         return api(originalRequest);
       } catch {
-        // Refresh failed - redirect to login
-        window.location.href = '/login';
+        // Refresh failed — only redirect to /login if not already on a public page
+        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email'];
+        const isPublicPage = publicPages.some((p) => window.location.pathname.startsWith(p));
+        if (!isPublicPage) {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
     }
