@@ -11,7 +11,8 @@
  * Security improvements:
  * - Backend issues a 10-minute setup window per secret.
  *   Same QR is returned until expiry; after expiry a new secret is generated.
- * - Countdown timer shown so user knows how long they have.
+ * - QR auto-refreshes every 60 seconds (WhatsApp-style) — visual ring depletes,
+ *   then silently fetches a fresh QR (same secret within the 10-min backend window).
  * - "Log out instead" button for users who want to abandon setup.
  */
 
@@ -45,14 +46,6 @@ interface SetupData {
   isNew: boolean;
 }
 
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return '0:00';
-  const totalSec = Math.ceil(ms / 1000);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 export default function Setup2FAPage() {
   const navigate = useNavigate();
   const refreshUser = useAuthStore((s) => s.refreshUser);
@@ -68,37 +61,37 @@ export default function Setup2FAPage() {
   const [backupCopied, setBackupCopied] = useState(false);
   const [backupAcknowledged, setBackupAcknowledged] = useState(false);
 
-  // Countdown state
-  const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [expired, setExpired] = useState(false);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // WhatsApp-style 60s QR auto-refresh
+  const QR_REFRESH_SECS = 60;
+  const [qrRefreshSecs, setQrRefreshSecs] = useState(QR_REFRESH_SECS);
+  const qrRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const startCountdown = useCallback((expiresAt: string) => {
-    if (countdownRef.current) clearInterval(countdownRef.current);
-    setExpired(false);
+  // SVG ring geometry
+  const RING_R = 112;
+  const RING_CIRC = 2 * Math.PI * RING_R;
+  const ringDashoffset = RING_CIRC * (1 - qrRefreshSecs / QR_REFRESH_SECS);
 
-    const tick = () => {
-      const remaining = new Date(expiresAt).getTime() - Date.now();
-      if (remaining <= 0) {
-        setTimeLeft(0);
-        setExpired(true);
-        if (countdownRef.current) clearInterval(countdownRef.current);
-      } else {
-        setTimeLeft(remaining);
-      }
-    };
-
-    tick();
-    countdownRef.current = setInterval(tick, 1000);
+  const startQrRefreshTimer = useCallback(() => {
+    if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
+    setQrRefreshSecs(QR_REFRESH_SECS);
+    qrRefreshRef.current = setInterval(() => {
+      setQrRefreshSecs((prev) => {
+        if (prev <= 1) {
+          clearInterval(qrRefreshRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }, []);
 
   useEffect(() => {
     return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
     };
   }, []);
 
-  // Fetch QR code on mount (or on demand to regenerate after expiry)
+  // Fetch QR code on mount (or on demand to silently refresh every 60s)
   const fetchSetup = useCallback(async () => {
     setIsLoading(true);
     setFetchError('');
@@ -106,7 +99,7 @@ export default function Setup2FAPage() {
       const res = await apiService.auth.twoFASetup();
       const { secret, qrCode, expiresAt, isNew } = res.data.data;
       setSetupData({ secret, qrCode, expiresAt, isNew });
-      startCountdown(expiresAt);
+      startQrRefreshTimer();
 
       if (!isNew) {
         toast.info('Returning your existing QR code — still valid.');
@@ -122,11 +115,18 @@ export default function Setup2FAPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, refreshUser, startCountdown]);
+  }, [navigate, refreshUser, startQrRefreshTimer]);
 
   useEffect(() => {
     fetchSetup();
   }, [fetchSetup]);
+
+  // When timer hits 0 on the QR step, silently refresh the QR
+  useEffect(() => {
+    if (qrRefreshSecs === 0 && step === 'qr' && !isLoading) {
+      fetchSetup();
+    }
+  }, [qrRefreshSecs, step, isLoading, fetchSetup]);
 
   const handleLogout = async () => {
     try {
@@ -140,15 +140,11 @@ export default function Setup2FAPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totpCode.length !== 6) return;
-    if (expired) {
-      toast.error('QR code has expired. Please regenerate it first.');
-      return;
-    }
     setIsLoading(true);
     try {
       const res = await apiService.auth.twoFAEnable(totpCode);
       setBackupCodes(res.data.data.backupCodes);
-      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
       await refreshUser(); // update twoFactorEnabled in store
       setStep('backup');
       toast.success('2FA enabled successfully!');
@@ -185,9 +181,6 @@ export default function Setup2FAPage() {
     exit: { opacity: 0, x: -40 },
   };
 
-  // Determine countdown color
-  const countdownColor = timeLeft > 3 * 60 * 1000 ? '#6fe0a0' : timeLeft > 60 * 1000 ? '#e0c06f' : '#e06f6f';
-
   return (
     <div
       className="min-h-screen flex flex-col relative overflow-hidden"
@@ -213,28 +206,17 @@ export default function Setup2FAPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Countdown pill — visible only on QR/verify steps */}
-          {step !== 'backup' && setupData && timeLeft > 0 && (
-            <div
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: `1px solid ${countdownColor}55`,
-                color: countdownColor,
-              }}
-            >
-              <Clock className="w-3 h-3" />
-              <span>{formatCountdown(timeLeft)}</span>
-            </div>
-          )}
-
-          {/* Log out instead */}
+          {/* Log out instead — visible pill so users can cleanly exit incomplete setup */}
           {step !== 'backup' && (
             <button
               type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70"
-              style={{ color: 'var(--color-dim)' }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.18)',
+              }}
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Log out instead</span>
@@ -316,7 +298,7 @@ export default function Setup2FAPage() {
                   </div>
 
                   {/* Interrupted-session notice */}
-                  {setupData && !setupData.isNew && !expired && (
+                  {setupData && !setupData.isNew && (
                     <div
                       className="flex items-start gap-3 rounded-xl px-4 py-3 mb-5 text-xs"
                       style={{ background: 'rgba(124,111,224,0.1)', border: '1px solid rgba(124,111,224,0.25)' }}
@@ -328,19 +310,7 @@ export default function Setup2FAPage() {
                     </div>
                   )}
 
-                  {/* Expiry warning */}
-                  {expired && (
-                    <div
-                      className="flex items-start gap-3 rounded-xl px-4 py-3 mb-5 text-xs"
-                      style={{ background: 'rgba(224,111,111,0.1)', border: '1px solid rgba(224,111,111,0.3)' }}
-                    >
-                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-400" />
-                      <div style={{ color: '#f0b4b4' }}>
-                        <strong>QR code expired.</strong> Any previously scanned entries are now invalid.
-                        Click <em>Regenerate</em> to get a new QR code and start fresh.
-                      </div>
-                    </div>
-                  )}
+                  {/* Expiry warning — removed; auto-refresh handles this silently */}
 
                   {isLoading && (
                     <div className="flex flex-col items-center py-10 gap-3">
@@ -361,45 +331,61 @@ export default function Setup2FAPage() {
 
                   {setupData && !isLoading && (
                     <>
-                      {!expired && (
-                        <div className="flex justify-center mb-5">
+                      {/* QR with WhatsApp-style depleting progress ring */}
+                      <div className="flex justify-center mb-5">
+                        <div className="relative inline-block">
                           <div className="p-3 bg-white rounded-2xl">
                             <img src={setupData.qrCode} alt="TOTP QR Code" className="w-48 h-48 rounded-lg" />
                           </div>
+                          {/* Circular progress ring — depletes every 60s then auto-refreshes */}
+                          <svg
+                            className="absolute pointer-events-none"
+                            style={{ inset: '-8px', width: 'calc(100% + 16px)', height: 'calc(100% + 16px)' }}
+                            viewBox="0 0 232 232"
+                            fill="none"
+                          >
+                            <defs>
+                              <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#7c6fe0" />
+                                <stop offset="100%" stopColor="#e06fbc" />
+                              </linearGradient>
+                            </defs>
+                            {/* Track */}
+                            <circle cx="116" cy="116" r={RING_R} stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+                            {/* Progress */}
+                            <circle
+                              cx="116"
+                              cy="116"
+                              r={RING_R}
+                              stroke="url(#ring-grad)"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeDasharray={String(RING_CIRC)}
+                              strokeDashoffset={String(ringDashoffset)}
+                              transform="rotate(-90 116 116)"
+                              style={{ transition: 'stroke-dashoffset 1s linear' }}
+                            />
+                          </svg>
                         </div>
-                      )}
+                      </div>
 
-                      {expired ? (
-                        <Button
-                          variant="secondary"
-                          size="lg"
-                          className="w-full mb-4"
-                          onClick={fetchSetup}
-                          leftIcon={<RefreshCw className="w-4 h-4" />}
-                        >
-                          Regenerate QR code
-                        </Button>
-                      ) : (
-                        <>
-                          <div className="rounded-xl p-4 mb-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-dim)' }}>
-                              Can't scan? Enter this key manually:
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <code className="flex-1 font-mono text-xs rounded-lg px-3 py-2 break-all" style={{ background: 'rgba(255,255,255,0.06)', color: '#9d94f0' }}>
-                                {setupData.secret}
-                              </code>
-                              <button type="button" onClick={copySecret} className="flex-shrink-0 p-2 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                                {secretCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
-                              </button>
-                            </div>
-                          </div>
+                      <div className="rounded-xl p-4 mb-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-dim)' }}>
+                          Can't scan? Enter this key manually:
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 font-mono text-xs rounded-lg px-3 py-2 break-all" style={{ background: 'rgba(255,255,255,0.06)', color: '#9d94f0' }}>
+                            {setupData.secret}
+                          </code>
+                          <button type="button" onClick={copySecret} className="flex-shrink-0 p-2 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                            {secretCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
+                          </button>
+                        </div>
+                      </div>
 
-                          <Button variant="primary" size="lg" className="w-full" onClick={() => setStep('verify')} rightIcon={<ChevronRight className="w-5 h-5" />}>
-                            I've scanned the QR code
-                          </Button>
-                        </>
-                      )}
+                      <Button variant="primary" size="lg" className="w-full" onClick={() => setStep('verify')} rightIcon={<ChevronRight className="w-5 h-5" />}>
+                        I've scanned the QR code
+                      </Button>
                     </>
                   )}
                 </div>
@@ -432,19 +418,6 @@ export default function Setup2FAPage() {
                     </p>
                   </div>
 
-                  {/* Expiry warning on verify step */}
-                  {expired && (
-                    <div
-                      className="flex items-start gap-3 rounded-xl px-4 py-3 mb-5 text-xs"
-                      style={{ background: 'rgba(224,111,111,0.1)', border: '1px solid rgba(224,111,111,0.3)' }}
-                    >
-                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-400" />
-                      <div style={{ color: '#f0b4b4' }}>
-                        <strong>Setup window expired.</strong> Go back and regenerate the QR code before verifying.
-                      </div>
-                    </div>
-                  )}
-
                   {/* TOTP display */}
                   <div
                     className="text-center py-4 rounded-xl mb-5 text-3xl font-bold"
@@ -472,7 +445,7 @@ export default function Setup2FAPage() {
                       size="lg"
                       className="w-full"
                       isLoading={isLoading}
-                      disabled={totpCode.length !== 6 || isLoading || expired}
+                      disabled={totpCode.length !== 6 || isLoading}
                     >
                       {isLoading ? 'Verifying…' : 'Verify & Enable 2FA'}
                     </Button>
