@@ -85,7 +85,7 @@ export const sendPasswordResetEmail = async (email: string, resetUrl: string): P
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #0a66c2;">Reset Your Password</h2>
         <p>You requested a password reset for your ProNet account.</p>
-        <p>Click the button below to reset your password. This link expires in <strong>10 minutes</strong>.</p>
+        <p>Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
         <a href="${resetUrl}" style="display:inline-block; background:#0a66c2; color:#fff; padding:12px 24px; border-radius:6px; text-decoration:none; margin: 16px 0;">
           Reset Password
         </a>
@@ -94,7 +94,7 @@ export const sendPasswordResetEmail = async (email: string, resetUrl: string): P
         <p style="color: #999; font-size: 12px;">ProNet — Professional Networking Platform</p>
       </div>
     `,
-    text: `Reset your password: ${resetUrl}\n\nThis link expires in 10 minutes.\n\nIf you didn't request this, ignore this email.`,
+    text: `Reset your password: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`,
   });
 };
 

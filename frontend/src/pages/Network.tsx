@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { UserPlus, Users, Check, X, Search, MapPin, Briefcase, Sparkles } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { apiService } from '@services/api';
 import { Button } from '@components/ui/Button';
 import { Avatar } from '@components/ui/Avatar';
@@ -85,8 +86,15 @@ function SkeletonCard() {
 }
 
 export default function NetworkPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const qc = useQueryClient();
+
+  // Sync search bar when URL param changes (e.g. navigating from header search)
+  useEffect(() => {
+    const q = searchParams.get('q') ?? '';
+    setSearchQuery(q);
+  }, [searchParams]);
 
   // AI-powered connection suggestions (skill overlap + mutual connections)
   const { data: suggestionsData, isLoading: suggestionsLoading } = useQuery({

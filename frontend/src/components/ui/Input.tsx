@@ -15,20 +15,19 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     const baseStyles = `
-      w-full px-4 py-3 text-sm rounded-xl border
+      w-full px-4 py-3 text-sm rounded-xl
       transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0
       disabled:opacity-50 disabled:cursor-not-allowed
-      font-medium
+      font-medium placeholder:text-[var(--color-dim)]
     `;
 
     const stateStyles = error
-      ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/20 bg-red-900/10'
-      : [
-          'border-dark-600/60 focus:border-accent-500/70 focus:ring-accent-500/15',
-          'bg-dark-800/60 text-dark-100 placeholder:text-dark-400',
-          'dark:bg-dark-800/60 dark:text-dark-100 dark:placeholder:text-dark-400',
-          'hover:border-dark-500',
-        ].join(' ');
+      ? 'focus:ring-red-500/20'
+      : 'focus:ring-accent-500/15';
+
+    const inputStyles = error
+      ? { background: 'var(--color-input-bg)', border: '1px solid rgba(239,68,68,0.6)', color: 'var(--color-text)' }
+      : { background: 'var(--color-input-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
 
     return (
       <div className="w-full">
@@ -53,6 +52,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               rightIcon && 'pr-10',
               className
             )}
+            style={inputStyles}
             {...props}
           />
           {rightIcon && (

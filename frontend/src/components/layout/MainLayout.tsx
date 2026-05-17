@@ -47,6 +47,15 @@ export default function MainLayout() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/network?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
+
   // Initialize E2E encryption key pair (background, non-blocking)
   useE2EKeys();
 
@@ -287,7 +296,8 @@ export default function MainLayout() {
         {/* Search */}
         <AnimatePresence>
           {searchOpen ? (
-            <motion.div
+            <motion.form
+              onSubmit={handleSearch}
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 280, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
@@ -305,14 +315,15 @@ export default function MainLayout() {
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Escape' && (setSearchOpen(false), setSearchQuery(''))}
                 placeholder="Search people, posts, jobs…"
                 className="flex-1 bg-transparent border-none outline-none text-sm"
                 style={{ color: 'var(--color-text)', fontFamily: 'inherit' }}
               />
-              <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>
+              <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>
                 <X className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
               </button>
-            </motion.div>
+            </motion.form>
           ) : (
             <button
               className="ml-auto w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
