@@ -7,9 +7,15 @@
  *  1. qr      — fetch secret + QR code, user scans with authenticator app
  *  2. verify  — enter 6-digit code via randomised virtual numpad
  *  3. backup  — view + acknowledge backup codes before entering the app
+ *
+ * Security improvements:
+ * - Backend issues a 10-minute setup window per secret.
+ *   Same QR is returned until expiry; after expiry a new secret is generated.
+ * - Countdown timer shown so user knows how long they have.
+ * - "Log out instead" button for users who want to abandon setup.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +27,8 @@ import {
   AlertTriangle,
   ChevronRight,
   RefreshCw,
+  LogOut,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiService } from '@services/api';
@@ -33,11 +41,22 @@ type Step = 'qr' | 'verify' | 'backup';
 interface SetupData {
   secret: string;
   qrCode: string;
+  expiresAt: string;
+  isNew: boolean;
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return '0:00';
+  const totalSec = Math.ceil(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function Setup2FAPage() {
   const navigate = useNavigate();
   const refreshUser = useAuthStore((s) => s.refreshUser);
+  const logout = useAuthStore((s) => s.logout);
 
   const [step, setStep] = useState<Step>('qr');
   const [setupData, setSetupData] = useState<SetupData | null>(null);
@@ -49,13 +68,49 @@ export default function Setup2FAPage() {
   const [backupCopied, setBackupCopied] = useState(false);
   const [backupAcknowledged, setBackupAcknowledged] = useState(false);
 
-  // Fetch QR code on mount
+  // Countdown state
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [expired, setExpired] = useState(false);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startCountdown = useCallback((expiresAt: string) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setExpired(false);
+
+    const tick = () => {
+      const remaining = new Date(expiresAt).getTime() - Date.now();
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setExpired(true);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+      } else {
+        setTimeLeft(remaining);
+      }
+    };
+
+    tick();
+    countdownRef.current = setInterval(tick, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
+
+  // Fetch QR code on mount (or on demand to regenerate after expiry)
   const fetchSetup = useCallback(async () => {
     setIsLoading(true);
     setFetchError('');
     try {
       const res = await apiService.auth.twoFASetup();
-      setSetupData({ secret: res.data.data.secret, qrCode: res.data.data.qrCode });
+      const { secret, qrCode, expiresAt, isNew } = res.data.data;
+      setSetupData({ secret, qrCode, expiresAt, isNew });
+      startCountdown(expiresAt);
+
+      if (!isNew) {
+        toast.info('Returning your existing QR code — still valid.');
+      }
     } catch (err: any) {
       // If 2FA is already enabled on this account, just go to the app
       if (err?.response?.data?.message?.includes('already enabled')) {
@@ -67,19 +122,33 @@ export default function Setup2FAPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, refreshUser]);
+  }, [navigate, refreshUser, startCountdown]);
 
   useEffect(() => {
     fetchSetup();
   }, [fetchSetup]);
 
+  const handleLogout = async () => {
+    try {
+      await apiService.auth.logout();
+    } catch (_e) { /* swallow */ }
+    logout();
+    navigate('/login', { replace: true });
+    toast.info('Logged out. You can complete 2FA setup when you log in again.');
+  };
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (totpCode.length !== 6) return;
+    if (expired) {
+      toast.error('QR code has expired. Please regenerate it first.');
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await apiService.auth.twoFAEnable(totpCode);
       setBackupCodes(res.data.data.backupCodes);
+      if (countdownRef.current) clearInterval(countdownRef.current);
       await refreshUser(); // update twoFactorEnabled in store
       setStep('backup');
       toast.success('2FA enabled successfully!');
@@ -116,6 +185,9 @@ export default function Setup2FAPage() {
     exit: { opacity: 0, x: -40 },
   };
 
+  // Determine countdown color
+  const countdownColor = timeLeft > 3 * 60 * 1000 ? '#6fe0a0' : timeLeft > 60 * 1000 ? '#e0c06f' : '#e06f6f';
+
   return (
     <div
       className="min-h-screen flex flex-col relative overflow-hidden"
@@ -139,9 +211,40 @@ export default function Setup2FAPage() {
           </div>
           <span className="text-base font-bold" style={{ color: 'var(--color-text)', letterSpacing: '-0.3px' }}>Nexus</span>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>
-          <ShieldCheck className="w-4 h-4" style={{ color: '#9d94f0' }} />
-          <span>Security Setup</span>
+
+        <div className="flex items-center gap-4">
+          {/* Countdown pill — visible only on QR/verify steps */}
+          {step !== 'backup' && setupData && timeLeft > 0 && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${countdownColor}55`,
+                color: countdownColor,
+              }}
+            >
+              <Clock className="w-3 h-3" />
+              <span>{formatCountdown(timeLeft)}</span>
+            </div>
+          )}
+
+          {/* Log out instead */}
+          {step !== 'backup' && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-70"
+              style={{ color: 'var(--color-dim)' }}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Log out instead</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--color-muted)' }}>
+            <ShieldCheck className="w-4 h-4" style={{ color: '#9d94f0' }} />
+            <span>Security Setup</span>
+          </div>
         </div>
       </header>
 
@@ -212,6 +315,33 @@ export default function Setup2FAPage() {
                     </p>
                   </div>
 
+                  {/* Interrupted-session notice */}
+                  {setupData && !setupData.isNew && !expired && (
+                    <div
+                      className="flex items-start gap-3 rounded-xl px-4 py-3 mb-5 text-xs"
+                      style={{ background: 'rgba(124,111,224,0.1)', border: '1px solid rgba(124,111,224,0.25)' }}
+                    >
+                      <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#9d94f0' }} />
+                      <div style={{ color: '#c4bfee' }}>
+                        <strong>Session resumed.</strong> Your previous setup window is still active — no need to re-scan if you already added this to your app.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expiry warning */}
+                  {expired && (
+                    <div
+                      className="flex items-start gap-3 rounded-xl px-4 py-3 mb-5 text-xs"
+                      style={{ background: 'rgba(224,111,111,0.1)', border: '1px solid rgba(224,111,111,0.3)' }}
+                    >
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-400" />
+                      <div style={{ color: '#f0b4b4' }}>
+                        <strong>QR code expired.</strong> Any previously scanned entries are now invalid.
+                        Click <em>Regenerate</em> to get a new QR code and start fresh.
+                      </div>
+                    </div>
+                  )}
+
                   {isLoading && (
                     <div className="flex flex-col items-center py-10 gap-3">
                       <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#7c6fe0', borderTopColor: 'transparent' }} />
@@ -231,29 +361,45 @@ export default function Setup2FAPage() {
 
                   {setupData && !isLoading && (
                     <>
-                      <div className="flex justify-center mb-5">
-                        <div className="p-3 bg-white rounded-2xl">
-                          <img src={setupData.qrCode} alt="TOTP QR Code" className="w-48 h-48 rounded-lg" />
+                      {!expired && (
+                        <div className="flex justify-center mb-5">
+                          <div className="p-3 bg-white rounded-2xl">
+                            <img src={setupData.qrCode} alt="TOTP QR Code" className="w-48 h-48 rounded-lg" />
+                          </div>
                         </div>
-                      </div>
+                      )}
 
-                      <div className="rounded-xl p-4 mb-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-dim)' }}>
-                          Can't scan? Enter this key manually:
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <code className="flex-1 font-mono text-xs rounded-lg px-3 py-2 break-all" style={{ background: 'rgba(255,255,255,0.06)', color: '#9d94f0' }}>
-                            {setupData.secret}
-                          </code>
-                          <button type="button" onClick={copySecret} className="flex-shrink-0 p-2 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                            {secretCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
-                          </button>
-                        </div>
-                      </div>
+                      {expired ? (
+                        <Button
+                          variant="secondary"
+                          size="lg"
+                          className="w-full mb-4"
+                          onClick={fetchSetup}
+                          leftIcon={<RefreshCw className="w-4 h-4" />}
+                        >
+                          Regenerate QR code
+                        </Button>
+                      ) : (
+                        <>
+                          <div className="rounded-xl p-4 mb-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-dim)' }}>
+                              Can't scan? Enter this key manually:
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <code className="flex-1 font-mono text-xs rounded-lg px-3 py-2 break-all" style={{ background: 'rgba(255,255,255,0.06)', color: '#9d94f0' }}>
+                                {setupData.secret}
+                              </code>
+                              <button type="button" onClick={copySecret} className="flex-shrink-0 p-2 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                                {secretCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
+                              </button>
+                            </div>
+                          </div>
 
-                      <Button variant="primary" size="lg" className="w-full" onClick={() => setStep('verify')} rightIcon={<ChevronRight className="w-5 h-5" />}>
-                        I've scanned the QR code
-                      </Button>
+                          <Button variant="primary" size="lg" className="w-full" onClick={() => setStep('verify')} rightIcon={<ChevronRight className="w-5 h-5" />}>
+                            I've scanned the QR code
+                          </Button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -286,6 +432,19 @@ export default function Setup2FAPage() {
                     </p>
                   </div>
 
+                  {/* Expiry warning on verify step */}
+                  {expired && (
+                    <div
+                      className="flex items-start gap-3 rounded-xl px-4 py-3 mb-5 text-xs"
+                      style={{ background: 'rgba(224,111,111,0.1)', border: '1px solid rgba(224,111,111,0.3)' }}
+                    >
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-400" />
+                      <div style={{ color: '#f0b4b4' }}>
+                        <strong>Setup window expired.</strong> Go back and regenerate the QR code before verifying.
+                      </div>
+                    </div>
+                  )}
+
                   {/* TOTP display */}
                   <div
                     className="text-center py-4 rounded-xl mb-5 text-3xl font-bold"
@@ -313,7 +472,7 @@ export default function Setup2FAPage() {
                       size="lg"
                       className="w-full"
                       isLoading={isLoading}
-                      disabled={totpCode.length !== 6 || isLoading}
+                      disabled={totpCode.length !== 6 || isLoading || expired}
                     >
                       {isLoading ? 'Verifying…' : 'Verify & Enable 2FA'}
                     </Button>

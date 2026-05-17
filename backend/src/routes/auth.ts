@@ -542,32 +542,60 @@ router.post('/2fa/validate', authRateLimiter, asyncHandler(async (req: Request, 
 
 /**
  * GET /api/auth/2fa/setup
- * Generate a TOTP secret + QR code for the logged-in user
+ * Generate a TOTP secret + QR code for the logged-in user.
+ * Security: secrets are valid for 10 minutes only. If an unexpired secret already
+ * exists, the SAME QR is returned (not regenerated) so that multiple scans within
+ * the window still work. After the window expires a new secret is generated,
+ * invalidating any previously scanned authenticator entries.
+ * Once 2FA is enabled, this endpoint returns 400 permanently.
  */
 router.get('/2fa/setup', protect, asyncHandler(async (req: Request, res: Response) => {
-  const user = await User.findById(req.user!.id);
+  const user = await User.findById(req.user!.id).select('+twoFactorSecret +twoFactorSetupExpiry');
   if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
   if (user.twoFactorEnabled) {
     return res.status(400).json({ success: false, message: '2FA is already enabled on this account.' });
   }
 
-  // Generate new secret
-  const secret = generateTOTPSecret();
+  const SETUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+  const now = Date.now();
+
+  let secret: string;
+  let isNew = false;
+
+  const hasValidSecret =
+    user.twoFactorSecret &&
+    user.twoFactorSetupExpiry &&
+    user.twoFactorSetupExpiry.getTime() > now;
+
+  if (hasValidSecret) {
+    // Reuse the existing secret — same QR, same expiry
+    secret = user.twoFactorSecret!;
+  } else {
+    // Generate a fresh secret and start a new 10-minute setup window
+    secret = generateTOTPSecret();
+    isNew = true;
+    await User.findByIdAndUpdate(user._id, {
+      twoFactorSecret: secret,
+      twoFactorSetupExpiry: new Date(now + SETUP_WINDOW_MS),
+    });
+  }
+
   const appName = 'FCS-26 Network';
   const otpAuthUrl = generateTOTPUri(user.email, secret, appName);
-
-  // Generate QR code as base64 data URL
   const qrCodeDataUrl = await QRCode.toDataURL(otpAuthUrl);
 
-  // Save secret temporarily (not yet enabled — confirmed on POST /2fa/enable)
-  await User.findByIdAndUpdate(user._id, { twoFactorSecret: secret });
+  const expiresAt = isNew
+    ? new Date(now + SETUP_WINDOW_MS).toISOString()
+    : (user.twoFactorSetupExpiry as Date).toISOString();
 
   return res.json({
     success: true,
     data: {
       secret,
       qrCode: qrCodeDataUrl,
+      expiresAt,
+      isNew,
       manualEntry: {
         accountName: user.email,
         issuer: appName,
@@ -616,7 +644,12 @@ router.post('/2fa/enable', protect, asyncHandler(async (req: Request, res: Respo
 
   user.twoFactorEnabled = true;
   user.twoFactorBackupCodes = hashedCodes;
-  await user.save();
+  // Clear setup expiry — QR can no longer be shown
+  await User.findByIdAndUpdate(user._id, {
+    twoFactorEnabled: true,
+    twoFactorBackupCodes: hashedCodes,
+    $unset: { twoFactorSetupExpiry: 1 },
+  });
 
   logSecurityEvent('2FA enabled', { userId: user._id });
 

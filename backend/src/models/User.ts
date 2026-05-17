@@ -50,6 +50,7 @@ export interface IUser extends Document {
   twoFactorSecret?: string;
   twoFactorEnabled: boolean;
   twoFactorBackupCodes?: string[];
+  twoFactorSetupExpiry?: Date;
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
   settings: {
@@ -208,6 +209,10 @@ const userSchema = new Schema<IUser>(
     },
     twoFactorBackupCodes: {
       type: [String],
+      select: false,
+    },
+    twoFactorSetupExpiry: {
+      type: Date,
       select: false,
     },
     emailVerificationToken: {
