@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Briefcase, MapPin, Clock, DollarSign, Search, Filter,
-  ChevronRight, X, Send, Building2
+  ChevronRight, X, Send, Building2, Plus, CheckCircle2,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiService } from '@services/api';
+import { useAuth } from '@stores/authStore';
 import { Button } from '@components/ui/Button';
 import { Badge } from '@components/ui/Badge';
 
@@ -53,6 +54,143 @@ function JobSkeleton() {
         <div className="h-5 w-20 bg-shade rounded-full" />
       </div>
     </div>
+  );
+}
+
+function PostJobModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none transition";
+  const inputStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
+  const [form, setForm] = useState({
+    title: '', company: '', location: '', description: '',
+    requirements: '', type: 'full-time', experienceLevel: 'mid',
+    skills: '', remote: false,
+    salaryMin: '', salaryMax: '', currency: 'USD',
+  });
+  const up = (f: Partial<typeof form>) => setForm(prev => ({ ...prev, ...f }));
+
+  const postMutation = useMutation({
+    mutationFn: () => apiService.jobs.create({
+      title: form.title, company: form.company, location: form.location,
+      description: form.description,
+      requirements: form.requirements.split('\n').map(s => s.trim()).filter(Boolean),
+      type: form.type, experienceLevel: form.experienceLevel,
+      skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
+      remote: form.remote,
+      ...(form.salaryMin && form.salaryMax ? {
+        salary: { min: Number(form.salaryMin), max: Number(form.salaryMax), currency: form.currency, period: 'year' }
+      } : {}),
+    }),
+    onSuccess: () => {
+      toast.success('Job posted!');
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      onClose();
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg ?? 'Could not post job');
+    },
+  });
+
+  const valid = form.title && form.company && form.location && form.description;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+        className="sp-card rounded-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div>
+            <h2 className="font-bold" style={{ color: 'var(--color-text)' }}>Post a New Job</h2>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Fill in the details below to post your listing</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl transition hover-shade"><X className="w-5 h-5" style={{ color: 'var(--color-muted)' }} /></button>
+        </div>
+
+        {/* Form */}
+        <div className="overflow-y-auto p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Job Title *</label>
+              <input className={inputCls} style={inputStyle} value={form.title} onChange={e => up({ title: e.target.value })} placeholder="e.g. Senior Software Engineer" />
+            </div>
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Company *</label>
+              <input className={inputCls} style={inputStyle} value={form.company} onChange={e => up({ company: e.target.value })} placeholder="e.g. Nexus Corp" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Location *</label>
+            <input className={inputCls} style={inputStyle} value={form.location} onChange={e => up({ location: e.target.value })} placeholder="e.g. Mumbai, India or Remote" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Job Type</label>
+              <select className={inputCls} style={inputStyle} value={form.type} onChange={e => up({ type: e.target.value })}>
+                {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Experience Level</label>
+              <select className={inputCls} style={inputStyle} value={form.experienceLevel} onChange={e => up({ experienceLevel: e.target.value })}>
+                {Object.entries(LEVEL_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Description *</label>
+            <textarea rows={5} className={inputCls} style={inputStyle} value={form.description}
+              onChange={e => up({ description: e.target.value })} placeholder="Describe the role, responsibilities, and what you're looking for…" maxLength={5000} />
+          </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Requirements <span style={{ color: 'var(--color-dim)' }}>(one per line)</span></label>
+            <textarea rows={3} className={inputCls} style={inputStyle} value={form.requirements}
+              onChange={e => up({ requirements: e.target.value })} placeholder="3+ years of experience&#10;Strong communication skills" />
+          </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Skills <span style={{ color: 'var(--color-dim)' }}>(comma-separated)</span></label>
+            <input className={inputCls} style={inputStyle} value={form.skills} onChange={e => up({ skills: e.target.value })} placeholder="React, TypeScript, Node.js" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Min Salary</label>
+              <input type="number" className={inputCls} style={inputStyle} value={form.salaryMin} onChange={e => up({ salaryMin: e.target.value })} placeholder="50000" />
+            </div>
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Max Salary</label>
+              <input type="number" className={inputCls} style={inputStyle} value={form.salaryMax} onChange={e => up({ salaryMax: e.target.value })} placeholder="80000" />
+            </div>
+            <div>
+              <label className="text-xs font-medium uppercase tracking-wider block mb-1.5" style={{ color: 'var(--color-muted)' }}>Currency</label>
+              <select className={inputCls} style={inputStyle} value={form.currency} onChange={e => up({ currency: e.target.value })}>
+                <option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="INR">INR</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => up({ remote: !form.remote })}
+              className="relative w-11 h-6 rounded-full transition-colors"
+              style={{ background: form.remote ? 'var(--color-accent)' : 'var(--color-shade-md)' }}>
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${form.remote ? 'left-6' : 'left-1'}`} />
+            </button>
+            <span className="text-sm" style={{ color: 'var(--color-text)' }}>Remote-friendly role</span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 flex-shrink-0" style={{ borderTop: '1px solid var(--color-border)' }}>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={() => postMutation.mutate()} isLoading={postMutation.isPending}
+            disabled={!valid} leftIcon={<CheckCircle2 className="w-4 h-4" />}>
+            Post Job
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -131,6 +269,7 @@ function ApplyModal({ job, onClose }: { job: Job; onClose: () => void }) {
 }
 
 export default function JobsPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [jobType, setJobType] = useState('');
   const [level, setLevel] = useState('');
@@ -138,6 +277,8 @@ export default function JobsPage() {
   const [page, setPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [applyJob, setApplyJob] = useState<Job | null>(null);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const isRecruiter = user?.accountType === 'recruiter' || user?.role === 'admin' || user?.role === 'moderator';
 
   const params: Record<string, string | number> = { page, limit: 10 };
   if (searchQuery.trim()) params.q = searchQuery.trim();
@@ -169,6 +310,29 @@ export default function JobsPage() {
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
+      {/* Header with Post Job button for recruiters */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Jobs</h1>
+          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Find your next opportunity or post a listing</p>
+        </div>
+        {isRecruiter && (
+          <Button variant="primary" size="sm" leftIcon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowPostModal(true)}>
+            Post a Job
+          </Button>
+        )}
+        {!isRecruiter && (
+          <button
+            onClick={() => window.location.href = '/settings'}
+            className="text-xs px-3 py-1.5 rounded-lg transition hover-shade"
+            style={{ color: 'var(--color-accent)', border: '1px solid rgba(124,111,224,0.3)' }}
+          >
+            Switch to Recruiter →
+          </button>
+        )}
+      </div>
+
       {/* Search + Filters */}
       <div className="sp-card rounded-2xl p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-3">
@@ -390,6 +554,11 @@ export default function JobsPage() {
       {/* Apply Modal */}
       <AnimatePresence>
         {applyJob && <ApplyModal job={applyJob} onClose={() => setApplyJob(null)} />}
+      </AnimatePresence>
+
+      {/* Post Job Modal (recruiters only) */}
+      <AnimatePresence>
+        {showPostModal && <PostJobModal onClose={() => setShowPostModal(false)} />}
       </AnimatePresence>
     </div>
   );

@@ -117,6 +117,32 @@ router.put('/me', protect, async (req: Request, res: Response) => {
 });
 
 // ──────────────────────────────────────────────
+// PATCH /users/me/account-type — switch candidate ↔ recruiter
+// ──────────────────────────────────────────────
+router.patch('/me/account-type', protect, async (req: Request, res: Response) => {
+  try {
+    const { accountType } = req.body;
+    if (!['candidate', 'recruiter'].includes(accountType)) {
+      return res.status(400).json({ success: false, message: 'accountType must be candidate or recruiter' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user!.id,
+      { $set: { accountType } },
+      { new: true }
+    ).select('-password -refreshToken -csrfSecret -resetPasswordToken -resetPasswordExpires');
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    logSecurityEvent('account_type_changed', { userId: req.user!.id, accountType }, 'info', req as any);
+    return res.json({ success: true, data: user, message: `Switched to ${accountType} mode` });
+  } catch (error) {
+    logger.error('Account type switch error', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ──────────────────────────────────────────────
 // GET /users/search — search users by name/headline
 // ──────────────────────────────────────────────
 router.get('/search', optionalAuth, searchRateLimiter, async (req: Request, res: Response) => {

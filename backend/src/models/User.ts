@@ -38,6 +38,8 @@ export interface IUser extends Document {
     description?: string;
   }>;
   role: 'user' | 'admin' | 'moderator';
+  /** Account type controls feature access: recruiters can post jobs */
+  accountType: 'candidate' | 'recruiter';
   isVerified: boolean;
   isActive: boolean;
   lastLogin?: Date;
@@ -164,6 +166,11 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ['user', 'admin', 'moderator'],
       default: 'user',
+    },
+    accountType: {
+      type: String,
+      enum: ['candidate', 'recruiter'],
+      default: 'candidate',
     },
     isVerified: {
       type: Boolean,

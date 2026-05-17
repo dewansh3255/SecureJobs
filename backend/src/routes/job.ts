@@ -76,6 +76,13 @@ router.get('/applications/mine', protect, async (req: Request, res: Response) =>
 // ──────────────────────────────────────────────
 router.post('/', protect, async (req: Request, res: Response) => {
   try {
+    // Only recruiters and admins can post jobs
+    const poster = await (await import('../models/User')).default.findById(req.user!.id).select('accountType role').lean();
+    if (!poster) return res.status(401).json({ success: false, message: 'Not authenticated' });
+    if (poster.accountType !== 'recruiter' && !['admin', 'moderator'].includes(poster.role)) {
+      return res.status(403).json({ success: false, message: 'You must be a recruiter to post jobs. Switch to recruiter mode in Settings.' });
+    }
+
     const { title, company, location, description, requirements, type, experienceLevel, salary, skills, benefits, remote, applicationDeadline } = req.body;
 
     if (!title || !company || !location || !description || !type || !experienceLevel) {

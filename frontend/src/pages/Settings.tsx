@@ -15,6 +15,8 @@ import {
   ShieldOff,
   Copy,
   CheckCircle2,
+  Briefcase,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@stores/authStore';
 import { useTheme } from '@stores/themeStore';
@@ -22,10 +24,11 @@ import { Button } from '@components/ui/Button';
 import { Input } from '@components/ui/Input';
 import { Badge } from '@components/ui/Badge';
 import { toast } from 'sonner';
-import api from '@services/api';
+import api, { apiService } from '@services/api';
 
 const settingsSections = [
   { id: 'account', name: 'Account', icon: User },
+  { id: 'account-type', name: 'Account Type', icon: Briefcase },
   { id: 'security', name: 'Security', icon: Shield },
   { id: 'privacy', name: 'Privacy', icon: Eye },
   { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -226,6 +229,7 @@ export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState('account');
+  const [switchingAccountType, setSwitchingAccountType] = useState(false);
   const [settings, setSettings] = useState({
     emailNotifications: user?.settings?.emailNotifications ?? true,
     pushNotifications: true,
@@ -233,6 +237,20 @@ export default function SettingsPage() {
     showOnlineStatus: true,
     darkMode: theme === 'dark',
   });
+
+  const handleAccountTypeSwitch = async (newType: 'candidate' | 'recruiter') => {
+    if (newType === user?.accountType) return;
+    setSwitchingAccountType(true);
+    try {
+      await apiService.users.switchAccountType(newType);
+      await refreshUser();
+      toast.success(`Switched to ${newType === 'recruiter' ? 'Recruiter' : 'Candidate'} mode!`);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || 'Failed to switch account type');
+    } finally {
+      setSwitchingAccountType(false);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -307,6 +325,81 @@ export default function SettingsPage() {
                     </div>
                     <Button variant="danger" size="sm" leftIcon={<Trash2 className="w-4 h-4" />}>Delete</Button>
                   </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Account Type */}
+          {activeSection === 'account-type' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <div className="sp-card rounded-2xl">
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Account Type</h2>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
+                    Choose your mode. You can switch at any time.
+                  </p>
+                </div>
+                <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Candidate card */}
+                  <button
+                    onClick={() => handleAccountTypeSwitch('candidate')}
+                    disabled={switchingAccountType || user?.accountType === 'candidate'}
+                    className="relative p-5 rounded-2xl text-left transition-all duration-200 disabled:cursor-default"
+                    style={{
+                      border: `2px solid ${user?.accountType === 'candidate' ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                      background: user?.accountType === 'candidate' ? 'rgba(124,111,224,0.08)' : 'var(--color-bg)',
+                      opacity: switchingAccountType ? 0.7 : 1,
+                    }}
+                  >
+                    {user?.accountType === 'candidate' && (
+                      <span className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: 'var(--color-accent)' }}>
+                        <CheckCircle2 className="w-3 h-3 text-white" />
+                      </span>
+                    )}
+                    <GraduationCap className="w-8 h-8 mb-3" style={{ color: user?.accountType === 'candidate' ? 'var(--color-accent)' : 'var(--color-muted)' }} />
+                    <p className="font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Candidate</p>
+                    <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Browse and apply for jobs posted on the platform.</p>
+                    <div className="mt-3 space-y-1 text-xs" style={{ color: 'var(--color-dim)' }}>
+                      <div>✓ Browse all job listings</div>
+                      <div>✓ Apply for jobs</div>
+                      <div>✓ Track your applications</div>
+                    </div>
+                  </button>
+
+                  {/* Recruiter card */}
+                  <button
+                    onClick={() => handleAccountTypeSwitch('recruiter')}
+                    disabled={switchingAccountType || user?.accountType === 'recruiter'}
+                    className="relative p-5 rounded-2xl text-left transition-all duration-200 disabled:cursor-default"
+                    style={{
+                      border: `2px solid ${user?.accountType === 'recruiter' ? '#6fcde0' : 'var(--color-border)'}`,
+                      background: user?.accountType === 'recruiter' ? 'rgba(111,205,224,0.08)' : 'var(--color-bg)',
+                      opacity: switchingAccountType ? 0.7 : 1,
+                    }}
+                  >
+                    {user?.accountType === 'recruiter' && (
+                      <span className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: '#6fcde0' }}>
+                        <CheckCircle2 className="w-3 h-3 text-white" />
+                      </span>
+                    )}
+                    <Briefcase className="w-8 h-8 mb-3" style={{ color: user?.accountType === 'recruiter' ? '#6fcde0' : 'var(--color-muted)' }} />
+                    <p className="font-semibold mb-1" style={{ color: 'var(--color-text)' }}>Recruiter</p>
+                    <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Post jobs and find talent for your organization.</p>
+                    <div className="mt-3 space-y-1 text-xs" style={{ color: 'var(--color-dim)' }}>
+                      <div>✓ Post job listings</div>
+                      <div>✓ View & manage applicants</div>
+                      <div>✓ Browse candidate profiles</div>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="px-6 pb-5">
+                  <p className="text-xs rounded-xl p-3" style={{ background: 'var(--color-shade)', color: 'var(--color-dim)' }}>
+                    💡 Your account type only controls job posting access. Your profile, connections, and posts are shared across both modes.
+                  </p>
                 </div>
               </div>
             </motion.div>

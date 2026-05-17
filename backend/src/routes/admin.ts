@@ -296,33 +296,46 @@ router.get('/stats', async (_req: Request, res: Response) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [
       totalUsers,
       newUsersToday,
+      newUsersWeek,
       totalPosts,
       postsToday,
       totalJobs,
+      activeJobs,
       securityErrors,
       securityWarnings,
       bannedUsers,
+      recruiters,
+      verifiedUsers,
+      totalConnections,
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ createdAt: { $gte: today } }),
+      User.countDocuments({ createdAt: { $gte: weekAgo } }),
       Post.countDocuments(),
       Post.countDocuments({ createdAt: { $gte: today } }),
       Job.countDocuments(),
+      Job.countDocuments({ status: 'active' }),
       AuditLog.countDocuments({ severity: 'error', createdAt: { $gte: today } }),
       AuditLog.countDocuments({ severity: 'warn', createdAt: { $gte: today } }),
-      User.countDocuments({ active: false }),
+      User.countDocuments({ isActive: false }),
+      User.countDocuments({ accountType: 'recruiter' }),
+      User.countDocuments({ isVerified: true }),
+      // Approximate connection count from users
+      User.aggregate([{ $project: { count: { $size: '$connections' } } }, { $group: { _id: null, total: { $sum: '$count' } } }]).then(r => Math.floor((r[0]?.total ?? 0) / 2)),
     ]);
 
     res.json({
       success: true,
       data: {
-        users: { total: totalUsers, newToday: newUsersToday, banned: bannedUsers },
+        users: { total: totalUsers, newToday: newUsersToday, newThisWeek: newUsersWeek, banned: bannedUsers, recruiters, verified: verifiedUsers },
         posts: { total: totalPosts, today: postsToday },
-        jobs: { total: totalJobs },
+        jobs: { total: totalJobs, active: activeJobs },
+        connections: { total: totalConnections },
         security: { errorsToday: securityErrors, warningsToday: securityWarnings },
       },
     });

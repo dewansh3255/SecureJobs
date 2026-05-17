@@ -33,6 +33,7 @@ export interface User {
   location?: string;
   profilePicture?: string;
   role: 'user' | 'admin' | 'moderator';
+  accountType: 'candidate' | 'recruiter';
   isVerified: boolean;
   twoFactorEnabled: boolean;
   settings: {

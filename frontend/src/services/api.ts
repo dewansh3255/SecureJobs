@@ -116,6 +116,8 @@ export const apiService = {
     get: (id: string) => api.get(`/users/${id}`),
     update: (data: Record<string, unknown>) => api.put('/users/me', data),
     search: (query: string, page = 1) => api.get('/users/search', { params: { q: query, page } }),
+    switchAccountType: (accountType: 'candidate' | 'recruiter') =>
+      api.patch('/users/me/account-type', { accountType }),
     uploadPhoto: (formData: FormData) =>
       api.post('/users/me/photo', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
