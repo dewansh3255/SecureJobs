@@ -105,6 +105,11 @@ const useAuthStore = create<AuthStore>()(
               twoFactorRequired: false,
               error: null,
             });
+            // If user hasn't set up 2FA yet, mark this tab as the setup session.
+            // Without this flag, ProtectedRoute treats other tabs/browsers as intruders.
+            if (response.data.data?.user?.twoFactorEnabled === false) {
+              sessionStorage.setItem('2fa_setup_pending', '1');
+            }
           } else {
             throw new Error(response.data.message || 'Login failed');
           }
@@ -157,6 +162,8 @@ const useAuthStore = create<AuthStore>()(
               isLoading: false,
               error: null,
             });
+            // New accounts always need 2FA setup — mark this tab as the originator.
+            sessionStorage.setItem('2fa_setup_pending', '1');
           } else {
             throw new Error(response.data.message || 'Registration failed');
           }
@@ -171,6 +178,9 @@ const useAuthStore = create<AuthStore>()(
       },
 
       logout: async () => {
+        // Clear the 2FA setup session flag so other browser sessions don't
+        // get trapped at /setup-2fa after this user logs out.
+        sessionStorage.removeItem('2fa_setup_pending');
         try {
           await api.post('/auth/logout');
         } catch (error) {

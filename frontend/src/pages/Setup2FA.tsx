@@ -66,10 +66,10 @@ export default function Setup2FAPage() {
   const [qrRefreshSecs, setQrRefreshSecs] = useState(QR_REFRESH_SECS);
   const qrRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // SVG ring geometry
-  const RING_R = 112;
-  const RING_CIRC = 2 * Math.PI * RING_R;
-  const ringDashoffset = RING_CIRC * (1 - qrRefreshSecs / QR_REFRESH_SECS);
+  // Rectangular border timer geometry (rect: 212×212, rx=16)
+  // Perimeter = 4*(212 - 2*16) + 2π*16 ≈ 720 + 100.5 = 820.5
+  const RECT_PERIM = 820;
+  const rectDashoffset = RECT_PERIM * (1 - qrRefreshSecs / QR_REFRESH_SECS);
 
   const startQrRefreshTimer = useCallback(() => {
     if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
@@ -92,16 +92,16 @@ export default function Setup2FAPage() {
   }, []);
 
   // Fetch QR code on mount (or on demand to silently refresh every 60s)
-  const fetchSetup = useCallback(async () => {
+  const fetchSetup = useCallback(async (force = false) => {
     setIsLoading(true);
     setFetchError('');
     try {
-      const res = await apiService.auth.twoFASetup();
+      const res = await apiService.auth.twoFASetup(force);
       const { secret, qrCode, expiresAt, isNew } = res.data.data;
       setSetupData({ secret, qrCode, expiresAt, isNew });
       startQrRefreshTimer();
 
-      if (!isNew) {
+      if (!isNew && !force) {
         toast.info('Returning your existing QR code — still valid.');
       }
     } catch (err: any) {
@@ -121,10 +121,10 @@ export default function Setup2FAPage() {
     fetchSetup();
   }, [fetchSetup]);
 
-  // When timer hits 0 on the QR step, silently refresh the QR
+  // When timer hits 0 on the QR step, force-regenerate a fresh QR (actually changes content)
   useEffect(() => {
     if (qrRefreshSecs === 0 && step === 'qr' && !isLoading) {
-      fetchSetup();
+      fetchSetup(true);
     }
   }, [qrRefreshSecs, step, isLoading, fetchSetup]);
 
@@ -171,6 +171,7 @@ export default function Setup2FAPage() {
   };
 
   const finishSetup = () => {
+    sessionStorage.removeItem('2fa_setup_pending');
     navigate('/', { replace: true });
     toast.success('Welcome! Your account is secured with 2FA.');
   };
@@ -323,7 +324,7 @@ export default function Setup2FAPage() {
                     <div className="flex flex-col items-center gap-4 py-6">
                       <AlertTriangle className="w-10 h-10 text-amber-500" />
                       <p className="text-sm text-red-400">{fetchError}</p>
-                      <Button variant="secondary" size="sm" onClick={fetchSetup} leftIcon={<RefreshCw className="w-4 h-4" />}>
+                      <Button variant="secondary" size="sm" onClick={() => fetchSetup(false)} leftIcon={<RefreshCw className="w-4 h-4" />}>
                         Try again
                       </Button>
                     </div>
@@ -331,38 +332,34 @@ export default function Setup2FAPage() {
 
                   {setupData && !isLoading && (
                     <>
-                      {/* QR with WhatsApp-style depleting progress ring */}
+                      {/* QR with rectangular border timer — depletes every 60s then auto-refreshes */}
                       <div className="flex justify-center mb-5">
                         <div className="relative inline-block">
                           <div className="p-3 bg-white rounded-2xl">
                             <img src={setupData.qrCode} alt="TOTP QR Code" className="w-48 h-48 rounded-lg" />
                           </div>
-                          {/* Circular progress ring — depletes every 60s then auto-refreshes */}
+                          {/* Rectangular progress border (boxy, hugging the QR container) */}
                           <svg
-                            className="absolute pointer-events-none"
-                            style={{ inset: '-8px', width: 'calc(100% + 16px)', height: 'calc(100% + 16px)' }}
-                            viewBox="0 0 232 232"
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            viewBox="0 0 216 216"
                             fill="none"
                           >
                             <defs>
-                              <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <linearGradient id="rect-grad" x1="0%" y1="0%" x2="100%" y2="0%">
                                 <stop offset="0%" stopColor="#7c6fe0" />
                                 <stop offset="100%" stopColor="#e06fbc" />
                               </linearGradient>
                             </defs>
                             {/* Track */}
-                            <circle cx="116" cy="116" r={RING_R} stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
-                            {/* Progress */}
-                            <circle
-                              cx="116"
-                              cy="116"
-                              r={RING_R}
-                              stroke="url(#ring-grad)"
+                            <rect x="2" y="2" width="212" height="212" rx="16"
+                              stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+                            {/* Depleting progress border */}
+                            <rect x="2" y="2" width="212" height="212" rx="16"
+                              stroke="url(#rect-grad)"
                               strokeWidth="3"
                               strokeLinecap="round"
-                              strokeDasharray={String(RING_CIRC)}
-                              strokeDashoffset={String(ringDashoffset)}
-                              transform="rotate(-90 116 116)"
+                              strokeDasharray={String(RECT_PERIM)}
+                              strokeDashoffset={String(rectDashoffset)}
                               style={{ transition: 'stroke-dashoffset 1s linear' }}
                             />
                           </svg>

@@ -543,11 +543,9 @@ router.post('/2fa/validate', authRateLimiter, asyncHandler(async (req: Request, 
 /**
  * GET /api/auth/2fa/setup
  * Generate a TOTP secret + QR code for the logged-in user.
- * Security: secrets are valid for 10 minutes only. If an unexpired secret already
- * exists, the SAME QR is returned (not regenerated) so that multiple scans within
- * the window still work. After the window expires a new secret is generated,
- * invalidating any previously scanned authenticator entries.
- * Once 2FA is enabled, this endpoint returns 400 permanently.
+ * - Normal call: returns same secret if within 10-min window, else regenerates.
+ * - ?force=true: always regenerates (used by frontend 60s auto-refresh so QR actually changes).
+ * Once 2FA is enabled, returns 400 permanently.
  */
 router.get('/2fa/setup', protect, asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findById(req.user!.id).select('+twoFactorSecret +twoFactorSetupExpiry');
@@ -559,20 +557,22 @@ router.get('/2fa/setup', protect, asyncHandler(async (req: Request, res: Respons
 
   const SETUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
   const now = Date.now();
-
-  let secret: string;
-  let isNew = false;
+  const forceNew = req.query.force === 'true';
 
   const hasValidSecret =
+    !forceNew &&
     user.twoFactorSecret &&
     user.twoFactorSetupExpiry &&
     user.twoFactorSetupExpiry.getTime() > now;
 
+  let secret: string;
+  let isNew = false;
+
   if (hasValidSecret) {
-    // Reuse the existing secret — same QR, same expiry
+    // Reuse existing secret within the window
     secret = user.twoFactorSecret!;
   } else {
-    // Generate a fresh secret and start a new 10-minute setup window
+    // Generate fresh secret — reset the 10-min window
     secret = generateTOTPSecret();
     isNew = true;
     await User.findByIdAndUpdate(user._id, {
