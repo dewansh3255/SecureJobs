@@ -40,27 +40,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         shadow-[0_4px_20px_rgba(124,111,224,0.35)]
         hover:shadow-[0_4px_28px_rgba(124,111,224,0.55)]
       `,
-      secondary: `
-        bg-dark-750 text-dark-100 border border-dark-600
-        hover:border-accent-500/40 hover:bg-dark-700 hover:text-white
-        focus:ring-accent-500/30
-        dark:bg-dark-750 dark:text-dark-100
-      `,
-      ghost: `
-        text-dark-300 hover:bg-dark-750/60 hover:text-white
-        focus:ring-dark-600
-        dark:text-dark-300 dark:hover:bg-dark-750/60 dark:hover:text-white
-      `,
+      secondary: `btn-secondary focus:ring-accent-500/30`,
+      ghost: `btn-ghost focus:ring-[var(--color-border)]`,
       danger: `
         bg-red-600 text-white hover:bg-red-500
         focus:ring-red-500/50
         shadow-[0_4px_16px_rgba(220,38,38,0.3)]
       `,
-      outline: `
-        border border-accent-500/50 text-accent-400
-        hover:bg-accent-500/10 hover:border-accent-500
-        focus:ring-accent-500/30
-      `,
+      outline: `btn-outline focus:ring-accent-500/30`,
     };
 
     const sizes = {
