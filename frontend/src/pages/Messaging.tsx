@@ -80,7 +80,7 @@ function NewConversationPanel({ onCreated }: { onCreated: (convId: string) => vo
   const users: Participant[] = data?.data ?? [];
 
   return (
-    <div className="p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+    <div className="p-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-dim)' }} />
         <input
@@ -89,7 +89,7 @@ function NewConversationPanel({ onCreated }: { onCreated: (convId: string) => vo
           onChange={e => setQ(e.target.value)}
           placeholder="Search people to message…"
           className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
-          style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-text)' }}
+          style={{ background: 'var(--color-bg)', border: '1px solid var(--color-shade-md)', color: 'var(--color-text)' }}
           autoFocus
         />
       </div>
@@ -242,10 +242,10 @@ export default function MessagingPage() {
 
         {/* Left panel: conversation list */}
         <div className={`${mobileShowThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 xl:w-96 shrink-0`}
-          style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+          style={{ borderRight: '1px solid var(--color-border)' }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3"
-            style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            style={{ borderBottom: '1px solid var(--color-border)' }}>
             <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Messages</h2>
             <button
               onClick={() => setShowNew(!showNew)}
@@ -352,7 +352,7 @@ export default function MessagingPage() {
             <>
               {/* Thread header */}
               <div className="flex items-center gap-3 px-4 py-3"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'var(--color-surface)' }}>
+                style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
                 <button
                   onClick={() => setMobileShowThread(false)}
                   className="lg:hidden p-1.5 rounded-xl hover:bg-white/5 transition"
@@ -395,7 +395,7 @@ export default function MessagingPage() {
                           {showDate && (
                             <div className="text-center my-3">
                               <span className="text-xs px-3 py-0.5 rounded-full"
-                                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-muted)' }}>
+                                style={{ background: 'var(--color-shade)', color: 'var(--color-muted)' }}>
                                 {fmtMsgDate(msg.createdAt)}
                               </span>
                             </div>
@@ -420,7 +420,7 @@ export default function MessagingPage() {
                                   color: '#fff',
                                   borderBottomRightRadius: '4px',
                                 } : {
-                                  background: 'rgba(255,255,255,0.08)',
+                                  background: 'var(--color-shade-md)',
                                   color: 'var(--color-text)',
                                   borderBottomLeftRadius: '4px',
                                 }}>
@@ -454,7 +454,7 @@ export default function MessagingPage() {
               </div>
 
               {/* Input */}
-              <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'var(--color-surface)' }}>
+              <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
                 <div className="flex items-end gap-2">
                   <textarea
                     value={message}
@@ -469,7 +469,7 @@ export default function MessagingPage() {
                     style={{
                       minHeight: '44px', maxHeight: '120px',
                       background: 'var(--color-bg)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      border: '1px solid var(--color-border)',
                       color: 'var(--color-text)',
                     }}
                     onInput={e => {

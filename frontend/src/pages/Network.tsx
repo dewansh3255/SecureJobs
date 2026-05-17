@@ -164,7 +164,7 @@ export default function NetworkPage() {
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition"
             style={{
               background: 'var(--color-bg)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: '1px solid var(--color-shade-md)',
               color: 'var(--color-text)',
             }}
           />

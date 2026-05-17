@@ -134,7 +134,7 @@ function EditBasicModal({ profile, onClose }: { profile: ProfileData; onClose: (
             rows={4} value={form.about} maxLength={2600}
             onChange={e => setForm(f => ({...f, about: e.target.value}))}
             className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none"
-            style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }}
+            style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
           />
         </div>
         <Button className="w-full" onClick={() => mut.mutate()} isLoading={mut.isPending}>Save</Button>
@@ -230,7 +230,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
         className="sp-card rounded-2xl w-full max-w-lg overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          style={{ borderBottom: '1px solid var(--color-border)' }}>
           <h2 className="font-bold" style={{ color: 'var(--color-text)' }}>{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-white/5 transition">
             <X className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
@@ -248,7 +248,7 @@ function LabelInput({ label, value, onChange, type = 'text' }: { label: string; 
       <label className="text-xs font-medium uppercase tracking-wider block mb-1" style={{ color: 'var(--color-muted)' }}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
         className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-        style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }} />
+        style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
     </div>
   );
 }
@@ -535,7 +535,7 @@ export default function ProfilePage() {
               onKeyDown={e => { if (e.key === 'Enter' && newSkill.trim()) { addSkillMut.mutate(newSkill.trim()); } }}
               placeholder="Type a skill and press Enter"
               className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }}
+              style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               autoFocus
             />
             <Button size="sm" onClick={() => { if (newSkill.trim()) addSkillMut.mutate(newSkill.trim()); }} isLoading={addSkillMut.isPending}>Add</Button>

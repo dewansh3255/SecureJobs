@@ -36,7 +36,7 @@ export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
     <div
       ref={ref}
       className={cn('px-5 py-4 border-b', className)}
-      style={{ borderColor: 'rgba(255,255,255,0.07)' }}
+      style={{ borderColor: 'var(--color-border)' }}
       {...props}
     >
       {children}
@@ -65,7 +65,7 @@ export const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
     <div
       ref={ref}
       className={cn('px-5 py-4 border-t', className)}
-      style={{ borderColor: 'rgba(255,255,255,0.07)' }}
+      style={{ borderColor: 'var(--color-border)' }}
       {...props}
     >
       {children}

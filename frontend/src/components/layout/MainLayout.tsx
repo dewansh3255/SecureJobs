@@ -294,7 +294,7 @@ export default function MainLayout() {
               transition={{ duration: 0.2 }}
               className="flex items-center gap-2 rounded-xl overflow-hidden ml-auto"
               style={{
-                background: 'rgba(19,19,31,0.9)',
+                background: 'var(--color-surface)',
                 border: '1px solid rgba(124,111,224,0.4)',
                 padding: '6px 14px',
               }}
@@ -317,8 +317,8 @@ export default function MainLayout() {
             <button
               className="ml-auto w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
               style={{
-                background: 'rgba(26,26,46,0.6)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: "var(--color-card)",
+                border: '1px solid var(--color-border)',
                 color: 'var(--color-muted)',
               }}
               onClick={() => setSearchOpen(true)}
@@ -342,8 +342,8 @@ export default function MainLayout() {
             onClick={handleLogout}
             className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
             style={{
-              background: 'rgba(26,26,46,0.6)',
-              border: '1px solid rgba(255,255,255,0.07)',
+              background: "var(--color-card)",
+              border: '1px solid var(--color-border)',
               color: 'var(--color-muted)',
             }}
             title="Logout"

@@ -66,16 +66,16 @@ function PostSkeleton() {
   return (
     <div className="sp-card rounded-2xl p-5 space-y-4 animate-pulse">
       <div className="flex gap-3">
-        <div className="w-11 h-11 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)' }} />
+        <div className="w-11 h-11 rounded-xl" style={{ background: 'var(--color-shade)' }} />
         <div className="flex-1 space-y-2 pt-1">
-          <div className="h-3.5 rounded-lg w-1/3" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          <div className="h-2.5 rounded-lg w-1/2" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          <div className="h-3.5 rounded-lg w-1/3" style={{ background: 'var(--color-shade)' }} />
+          <div className="h-2.5 rounded-lg w-1/2" style={{ background: 'var(--color-shade)' }} />
         </div>
       </div>
       <div className="space-y-2">
-        <div className="h-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
-        <div className="h-2.5 rounded-lg w-5/6" style={{ background: 'rgba(255,255,255,0.04)' }} />
-        <div className="h-2.5 rounded-lg w-4/6" style={{ background: 'rgba(255,255,255,0.03)' }} />
+        <div className="h-2.5 rounded-lg" style={{ background: 'var(--color-shade)' }} />
+        <div className="h-2.5 rounded-lg w-5/6" style={{ background: 'var(--color-shade)' }} />
+        <div className="h-2.5 rounded-lg w-4/6" style={{ background: 'var(--color-shade)' }} />
       </div>
     </div>
   );
@@ -110,15 +110,15 @@ function CreatePost({ user }: { user: { firstName: string; lastName: string; pro
                 onClick={() => setExpanded(true)}
                 className="w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200"
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--color-shade)',
+                  border: '1px solid var(--color-shade-md)',
                   color: 'var(--color-dim)',
                 }}
                 onMouseEnter={e => {
                   (e.currentTarget as HTMLElement).style.borderColor = 'rgba(124,111,224,0.35)';
                 }}
                 onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-shade-md)';
                 }}
               >
                 What's on your mind?
@@ -139,11 +139,11 @@ function CreatePost({ user }: { user: { firstName: string; lastName: string; pro
                     style={{ color: 'var(--color-text)', fontFamily: 'inherit' }}
                     maxLength={3000}
                   />
-                  <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <div className="flex gap-2">
                       <button
                         className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-all duration-200"
-                        style={{ color: 'var(--color-muted)', background: 'rgba(255,255,255,0.04)' }}
+                        style={{ color: 'var(--color-muted)', background: 'var(--color-shade)' }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#9d94f0'}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-muted)'}
                       >
@@ -302,7 +302,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                   className="p-1.5 rounded-lg transition-all duration-200"
                   style={{ color: 'var(--color-dim)' }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                    (e.currentTarget as HTMLElement).style.background = 'var(--color-shade)';
                     (e.currentTarget as HTMLElement).style.color = 'var(--color-muted)';
                   }}
                   onMouseLeave={e => {
@@ -355,7 +355,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
           {(post.reactionCount > 0 || post.commentCount > 0) && (
             <div
               className="px-5 pb-2 flex items-center justify-between text-xs"
-              style={{ color: 'var(--color-dim)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ color: 'var(--color-dim)', borderBottom: '1px solid var(--color-shade)' }}
             >
               <span>{post.reactionCount > 0 ? `${post.reactionCount} reactions` : ''}</span>
               {post.commentCount > 0 && (
@@ -374,7 +374,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
 
           {/* Latest comment preview (when not expanded) */}
           {!commentsExpanded && post.latestComment && post.commentCount > 0 && (
-            <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--color-shade)' }}>
               <div className="flex gap-2.5">
                 <Avatar
                   name={`${post.latestComment.author.firstName} ${post.latestComment.author.lastName}`}
@@ -383,7 +383,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                 />
                 <div
                   className="flex-1 px-3 py-2 rounded-xl text-xs"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                  style={{ background: 'var(--color-shade)', border: '1px solid var(--color-shade)' }}
                 >
                   <span className="font-semibold mr-1.5" style={{ color: 'var(--color-text)' }}>
                     {post.latestComment.author.firstName} {post.latestComment.author.lastName}
@@ -412,14 +412,14 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                style={{ borderBottom: '1px solid var(--color-shade)' }}
               >
                 <div className="px-5 pt-3 pb-2 space-y-3">
                   {commentsLoading ? (
                     [1, 2].map(i => (
                       <div key={i} className="flex gap-2 animate-pulse">
-                        <div className="w-7 h-7 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                        <div className="flex-1 h-8 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                        <div className="w-7 h-7 rounded-xl flex-shrink-0" style={{ background: 'var(--color-shade)' }} />
+                        <div className="flex-1 h-8 rounded-xl" style={{ background: 'var(--color-shade)' }} />
                       </div>
                     ))
                   ) : allComments.length === 0 ? (
@@ -434,7 +434,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                         />
                         <div
                           className="flex-1 px-3 py-2 rounded-xl text-xs"
-                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                          style={{ background: 'var(--color-shade)', border: '1px solid var(--color-shade)' }}
                         >
                           <span className="font-semibold mr-1.5" style={{ color: 'var(--color-text)' }}>
                             {c.author.firstName} {c.author.lastName}
@@ -480,7 +480,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 ${userReaction ? REACTION_ICONS[userReaction]?.color : ''}`}
                 style={!userReaction ? { color: 'var(--color-muted)' } : {}}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                  (e.currentTarget as HTMLElement).style.background = 'var(--color-shade)';
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -510,7 +510,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                         title={label}
                         onClick={() => { reactMutation.mutate(type); setShowReactions(false); }}
                         className={`p-2 rounded-xl ${color} transition-transform hover:scale-125`}
-                        style={{ background: 'rgba(255,255,255,0.04)' }}
+                        style={{ background: 'var(--color-shade)' }}
                       >
                         {icon}
                       </button>
@@ -525,7 +525,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200"
               style={{ color: 'var(--color-muted)' }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                (e.currentTarget as HTMLElement).style.background = 'var(--color-shade)';
               }}
               onMouseLeave={e => {
                 (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -539,7 +539,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200"
               style={{ color: 'var(--color-muted)' }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                (e.currentTarget as HTMLElement).style.background = 'var(--color-shade)';
               }}
               onMouseLeave={e => {
                 (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -558,7 +558,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 className="px-5 pb-4"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ borderTop: '1px solid var(--color-shade)' }}
               >
                 <div className="flex gap-2 pt-4">
                   <textarea
@@ -569,13 +569,13 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                     rows={2}
                     className="flex-1 resize-none rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-200"
                     style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: 'var(--color-shade)',
+                      border: '1px solid var(--color-shade-md)',
                       color: 'var(--color-text)',
                       fontFamily: 'inherit',
                     }}
                     onFocus={e => (e.currentTarget.style.borderColor = 'rgba(124,111,224,0.5)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'var(--color-shade-md)')}
                   />
                   <button
                     onClick={() => commentMutation.mutate(commentText)}
@@ -625,7 +625,7 @@ function ProfileSideCard({ user }: { user: { firstName: string; lastName: string
         )}
         <div
           className="mt-3 pt-3 text-xs"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.07)', color: 'var(--color-dim)' }}
+          style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-dim)' }}
         >
           <div className="flex justify-between py-1">
             <span>Profile views</span>
@@ -661,10 +661,10 @@ function SuggestionsPanel() {
           {isLoading ? (
             [1, 2, 3].map(i => (
               <div key={i} className="flex items-center gap-3 animate-pulse">
-                <div className="w-9 h-9 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                <div className="w-9 h-9 rounded-xl flex-shrink-0" style={{ background: 'var(--color-shade)' }} />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3 rounded-lg w-3/4" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                  <div className="h-2 rounded-lg w-1/2" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                  <div className="h-3 rounded-lg w-3/4" style={{ background: 'var(--color-shade)' }} />
+                  <div className="h-2 rounded-lg w-1/2" style={{ background: 'var(--color-shade)' }} />
                 </div>
               </div>
             ))

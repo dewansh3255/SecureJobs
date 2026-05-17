@@ -39,7 +39,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
       type="button"
       onClick={onChange}
       className="relative w-12 h-6 rounded-full transition-colors focus:outline-none"
-      style={{ background: checked ? 'var(--color-accent)' : 'rgba(255,255,255,0.12)' }}
+      style={{ background: checked ? 'var(--color-accent)' : 'var(--color-shade-md)' }}
     >
       <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${checked ? 'left-7' : 'left-1'}`} />
     </button>
@@ -119,11 +119,11 @@ function TwoFactorSection({ enabled, onRefresh }: { enabled: boolean; onRefresh:
         </p>
         <div className="flex justify-center">
           <img src={qrCode} alt="2FA QR Code" className="w-48 h-48 rounded-xl"
-            style={{ border: '1px solid rgba(255,255,255,0.1)' }} />
+            style={{ border: '1px solid var(--color-border)' }} />
         </div>
         <div className="flex items-center gap-2">
           <code className="flex-1 text-xs px-3 py-2 rounded-xl font-mono break-all"
-            style={{ background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>{secret}</code>
+            style={{ background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-shade-md)' }}>{secret}</code>
           <button onClick={copySecret} title="Copy secret" className="p-2 rounded-lg hover:bg-white/5 transition">
             {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
           </button>
@@ -274,7 +274,7 @@ export default function SettingsPage() {
           {activeSection === 'account' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
               <div className="sp-card rounded-2xl">
-                <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Account Settings</h2>
                 </div>
                 <div className="p-6 space-y-6">
@@ -289,11 +289,11 @@ export default function SettingsPage() {
               </div>
 
               <div className="sp-card rounded-2xl">
-                <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Data & Privacy</h2>
                 </div>
                 <div className="p-6 space-y-4">
-                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <div>
                       <p className="font-medium" style={{ color: 'var(--color-text)' }}>Download your data</p>
                       <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Get a copy of your profile and activity</p>
@@ -316,11 +316,11 @@ export default function SettingsPage() {
           {activeSection === 'security' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="sp-card rounded-2xl">
-                <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Password & Security</h2>
                 </div>
                 <div className="p-6 space-y-6">
-                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <div>
                       <p className="font-medium" style={{ color: 'var(--color-text)' }}>Password</p>
                       <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Change your account password</p>
@@ -328,7 +328,7 @@ export default function SettingsPage() {
                     <Button variant="outline" size="sm" leftIcon={<Lock className="w-4 h-4" />}>Change</Button>
                   </div>
 
-                  <div className="py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <TwoFactorSection enabled={!!user?.twoFactorEnabled} onRefresh={refreshUser} />
                   </div>
 
@@ -362,7 +362,7 @@ export default function SettingsPage() {
           {activeSection === 'privacy' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="sp-card rounded-2xl">
-                <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Privacy Settings</h2>
                 </div>
                 <div className="p-6 space-y-6">
@@ -374,14 +374,14 @@ export default function SettingsPage() {
                       value={settings.profileVisibility}
                       onChange={(e) => setSettings({ ...settings, profileVisibility: e.target.value as 'public' | 'connections' | 'private' })}
                       className="w-full px-4 py-2.5 text-sm rounded-xl outline-none"
-                      style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-text)' }}
+                      style={{ background: 'var(--color-bg)', border: '1px solid var(--color-shade-md)', color: 'var(--color-text)' }}
                     >
                       <option value="public">Public - Anyone can see your profile</option>
                       <option value="connections">Connections - Only connections can see</option>
                       <option value="private">Private - Limited visibility</option>
                     </select>
                   </div>
-                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <div>
                       <p className="font-medium" style={{ color: 'var(--color-text)' }}>Show online status</p>
                       <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Let others see when you're active</p>
@@ -398,11 +398,11 @@ export default function SettingsPage() {
           {activeSection === 'notifications' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="sp-card rounded-2xl">
-                <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Notification Preferences</h2>
                 </div>
                 <div className="p-6 space-y-4">
-                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="flex items-center justify-between py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                     <div className="flex items-center space-x-3">
                       <Mail className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
                       <div>
@@ -431,7 +431,7 @@ export default function SettingsPage() {
           {activeSection === 'appearance' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
               <div className="sp-card rounded-2xl">
-                <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <div className="px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
                   <h2 className="font-semibold" style={{ color: 'var(--color-text)' }}>Appearance Settings</h2>
                 </div>
                 <div className="p-6 space-y-6">
@@ -445,7 +445,7 @@ export default function SettingsPage() {
                     </div>
                     <Toggle checked={theme === 'dark'} onChange={toggleTheme} />
                   </div>
-                  <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
                       Dark mode reduces eye strain and is easier on the battery for OLED screens.
                     </p>

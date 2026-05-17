@@ -30,10 +30,10 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
 function SkeletonRow() {
   return (
     <div className="flex items-center gap-3 p-4 animate-pulse">
-      <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+      <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'var(--color-shade)' }} />
       <div className="flex-1 space-y-2">
-        <div className="h-3 rounded-lg w-3/4" style={{ background: 'rgba(255,255,255,0.06)' }} />
-        <div className="h-2 rounded-lg w-1/3" style={{ background: 'rgba(255,255,255,0.04)' }} />
+        <div className="h-3 rounded-lg w-3/4" style={{ background: 'var(--color-shade)' }} />
+        <div className="h-2 rounded-lg w-1/3" style={{ background: 'var(--color-shade)' }} />
       </div>
     </div>
   );
@@ -94,7 +94,7 @@ export default function NotificationsPage() {
 
       <Card className="overflow-hidden">
         {isLoading ? (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ borderTop: '1px solid var(--color-border)' }}>
             {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
           </div>
         ) : isError ? (
@@ -119,7 +119,7 @@ export default function NotificationsPage() {
                 className="flex items-start gap-3 p-4 cursor-pointer transition-all duration-200"
                 style={{
                   background: n.read ? 'transparent' : 'rgba(124,111,224,0.06)',
-                  borderBottom: idx < notifications.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  borderBottom: idx < notifications.length - 1 ? '1px solid var(--color-shade)' : 'none',
                 }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(124,111,224,0.08)')}
                 onMouseLeave={e => (e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(124,111,224,0.06)')}
@@ -143,7 +143,7 @@ export default function NotificationsPage() {
                   ) : (
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ background: 'rgba(255,255,255,0.06)' }}
+                      style={{ background: 'var(--color-shade)' }}
                     >
                       {TYPE_ICON[n.type] ?? <Bell className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
                     </div>

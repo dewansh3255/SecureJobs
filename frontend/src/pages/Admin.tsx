@@ -73,7 +73,7 @@ function Pagination({ page, pages, onPrev, onNext }: {
   page: number; pages: number; onPrev: () => void; onNext: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between pt-4 mt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+    <div className="flex items-center justify-between pt-4 mt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
       <span className="text-sm" style={{ color: 'var(--color-muted)' }}>Page {page} of {pages}</span>
       <div className="flex gap-2">
         <Button size="sm" variant="ghost" onClick={onPrev} disabled={page <= 1}
@@ -204,7 +204,7 @@ export default function AdminPage() {
             style={{
               background: tab === id ? 'var(--color-card)' : 'transparent',
               color: tab === id ? 'var(--color-text)' : 'var(--color-muted)',
-              border: tab === id ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
+              border: tab === id ? '1px solid var(--color-border)' : '1px solid transparent',
             }}
           >
             <Icon className="w-4 h-4" />
@@ -244,7 +244,7 @@ export default function AdminPage() {
         {tab === 'users' && (
           <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="sp-card rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <div className="flex-1">
                   <Input
                     placeholder="Search users by name or email…"
@@ -260,7 +260,7 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-shade)' }}>
                       <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>User</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Role</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>2FA</th>
@@ -272,7 +272,7 @@ export default function AdminPage() {
                   <tbody>
                     {usersQ.data?.data?.data?.users?.map((u: any) => (
                       <tr key={u._id} className="transition hover:bg-white/5"
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3">
                           <p className="font-medium" style={{ color: 'var(--color-text)' }}>{u.firstName} {u.lastName}</p>
                           <p className="text-xs" style={{ color: 'var(--color-dim)' }}>{u.email}</p>
@@ -336,7 +336,7 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-shade)' }}>
                       <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Author</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Content</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Created</th>
@@ -346,7 +346,7 @@ export default function AdminPage() {
                   <tbody>
                     {postsQ.data?.data?.data?.posts?.map((p: any) => (
                       <tr key={p._id} className="transition hover:bg-white/5"
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3">
                           <p className="font-medium text-xs" style={{ color: 'var(--color-text)' }}>{p.author?.firstName} {p.author?.lastName}</p>
                         </td>
@@ -389,7 +389,7 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-shade)' }}>
                       <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Title</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Company</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Posted By</th>
@@ -400,7 +400,7 @@ export default function AdminPage() {
                   <tbody>
                     {jobsQ.data?.data?.data?.jobs?.map((j: any) => (
                       <tr key={j._id} className="transition hover:bg-white/5"
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3 font-medium" style={{ color: 'var(--color-text)' }}>{j.title}</td>
                         <td className="px-4 py-3" style={{ color: 'var(--color-muted)' }}>{j.company}</td>
                         <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-dim)' }}>{j.postedBy?.firstName} {j.postedBy?.lastName}</td>
@@ -435,12 +435,12 @@ export default function AdminPage() {
         {tab === 'audit' && (
           <motion.div key="audit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <div className="sp-card rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <select
                   value={auditSeverity}
                   onChange={e => { setAuditSeverity(e.target.value); setAuditPage(1); }}
                   className="px-3 py-1.5 text-sm rounded-xl outline-none"
-                  style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }}
+                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
                 >
                   <option value="">All severities</option>
                   <option value="info">Info</option>
@@ -453,7 +453,7 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                    <tr style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-shade)' }}>
                       <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Event</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Severity</th>
                       <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>User</th>
@@ -464,7 +464,7 @@ export default function AdminPage() {
                   <tbody>
                     {auditQ.data?.data?.data?.logs?.map((log: any) => (
                       <tr key={log._id} className="transition hover:bg-white/5"
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3">
                           <p className="font-mono text-xs" style={{ color: 'var(--color-text)' }}>{log.event}</p>
                         </td>

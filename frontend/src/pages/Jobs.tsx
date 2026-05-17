@@ -76,7 +76,7 @@ function ApplyModal({ job, onClose }: { job: Job; onClose: () => void }) {
   });
 
   const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none transition";
-  const inputStyle = { background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' };
+  const inputStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
 
   return (
     <motion.div
@@ -93,7 +93,7 @@ function ApplyModal({ job, onClose }: { job: Job; onClose: () => void }) {
         exit={{ scale: 0.95, y: 20 }}
         className="sp-card rounded-2xl w-full max-w-lg overflow-hidden"
       >
-        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <h2 className="font-bold" style={{ color: 'var(--color-text)' }}>Apply for {job.title}</h2>
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{job.company}</p>
@@ -165,7 +165,7 @@ export default function JobsPage() {
   const totalPages: number = data?.pagination?.pages ?? 1;
 
   const inputCls = "px-3 py-2 rounded-xl text-sm outline-none";
-  const inputStyle = { background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-text)' };
+  const inputStyle = { background: 'var(--color-bg)', border: '1px solid var(--color-shade-md)', color: 'var(--color-text)' };
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
@@ -178,7 +178,7 @@ export default function JobsPage() {
               onChange={e => { setSearchQuery(e.target.value); setPage(1); }}
               placeholder="Search jobs by title, company, or keyword…"
               className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-text)' }} />
+              style={{ background: 'var(--color-bg)', border: '1px solid var(--color-shade-md)', color: 'var(--color-text)' }} />
           </div>
           <div className="flex gap-2 flex-wrap">
             <select value={jobType} onChange={e => { setJobType(e.target.value); setPage(1); }}
@@ -196,7 +196,7 @@ export default function JobsPage() {
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition"
               style={{
                 background: remote ? 'rgba(124,111,224,0.2)' : 'var(--color-bg)',
-                border: `1px solid ${remote ? 'rgba(124,111,224,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                border: `1px solid ${remote ? 'rgba(124,111,224,0.5)' : 'var(--color-shade-md)'}`,
                 color: remote ? 'var(--color-accent)' : 'var(--color-muted)',
               }}
             >
@@ -322,7 +322,7 @@ export default function JobsPage() {
                     </Button>
                   )}
 
-                  <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div className="pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <h3 className="font-semibold mb-2" style={{ color: 'var(--color-text)' }}>About the Role</h3>
                     <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--color-muted)' }}>
                       {selectedJob.description}
@@ -366,7 +366,7 @@ export default function JobsPage() {
                       {recommendedJobs.map(job => (
                         <button key={job._id} onClick={() => setSelectedJob(job)}
                           className="w-full text-left p-3 rounded-xl transition hover:bg-white/5 sp-card-lift"
-                          style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+                          style={{ border: '1px solid var(--color-shade)' }}>
                           <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{job.title}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{job.company} · {job.location}</p>
                         </button>

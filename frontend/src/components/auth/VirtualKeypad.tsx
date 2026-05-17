@@ -47,7 +47,7 @@ export default function VirtualKeypad({ value, onChange, maxLength = 6 }: Virtua
               disabled={value.length >= maxLength}
               className="w-16 h-14 rounded-xl font-bold text-lg transition-all duration-150 focus:outline-none"
               style={{
-                background: 'rgba(26,26,46,0.7)',
+                background: "var(--color-card)",
                 border: '1px solid rgba(124,111,224,0.25)',
                 color: 'var(--color-text)',
                 cursor: value.length >= maxLength ? 'not-allowed' : 'pointer',
@@ -57,7 +57,7 @@ export default function VirtualKeypad({ value, onChange, maxLength = 6 }: Virtua
                   (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.18)';
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = 'rgba(26,26,46,0.7)';
+                (e.currentTarget as HTMLElement).style.background = "var(--color-card)";
               }}
             >
               {digit}
@@ -72,8 +72,8 @@ export default function VirtualKeypad({ value, onChange, maxLength = 6 }: Virtua
               disabled={value.length === 0}
               className="w-16 h-14 rounded-xl flex items-center justify-center transition-all duration-150 focus:outline-none"
               style={{
-                background: 'rgba(26,26,46,0.5)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: "var(--color-card)",
+                border: '1px solid var(--color-border)',
                 color: 'var(--color-muted)',
               }}
             >

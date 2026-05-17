@@ -214,9 +214,9 @@ export default function Setup2FAPage() {
               onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
               style={{
-                color: 'rgba(255,255,255,0.85)',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.18)',
+                color: 'var(--color-text)',
+                background: 'var(--color-shade-md)',
+                border: '1px solid var(--color-shade-md)',
               }}
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -232,7 +232,7 @@ export default function Setup2FAPage() {
       </header>
 
       {/* Progress bar */}
-      <div className="relative z-10 w-full h-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+      <div className="relative z-10 w-full h-0.5" style={{ background: 'var(--color-shade)' }}>
         <motion.div
           className="h-full rounded-full"
           style={{ background: 'linear-gradient(90deg, #7c6fe0, #e06fbc)' }}
@@ -249,10 +249,10 @@ export default function Setup2FAPage() {
               className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-all"
               style={{
                 background: step === s ? 'linear-gradient(135deg, #7c6fe0, #e06fbc)'
-                  : ((step === 'verify' && s === 'qr') || step === 'backup') ? 'rgba(111,224,160,0.25)' : 'rgba(255,255,255,0.08)',
+                  : ((step === 'verify' && s === 'qr') || step === 'backup') ? 'rgba(111,224,160,0.25)' : 'var(--color-shade-md)',
                 color: step === s ? 'white'
                   : ((step === 'verify' && s === 'qr') || step === 'backup') ? '#6fe0a0' : 'var(--color-dim)',
-                border: step === s ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                border: step === s ? 'none' : '1px solid var(--color-border)',
               }}
             >
               {((step === 'verify' && s === 'qr') || step === 'backup') && s !== step ? (
@@ -352,7 +352,7 @@ export default function Setup2FAPage() {
                             </defs>
                             {/* Track */}
                             <rect x="2" y="2" width="212" height="212" rx="16"
-                              stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+                              stroke="var(--color-shade-md)" strokeWidth="3" />
                             {/* Depleting progress border */}
                             <rect x="2" y="2" width="212" height="212" rx="16"
                               stroke="url(#rect-grad)"
@@ -366,15 +366,15 @@ export default function Setup2FAPage() {
                         </div>
                       </div>
 
-                      <div className="rounded-xl p-4 mb-6" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="rounded-xl p-4 mb-6" style={{ background: 'var(--color-shade)', border: '1px solid var(--color-border)' }}>
                         <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-dim)' }}>
                           Can't scan? Enter this key manually:
                         </p>
                         <div className="flex items-center gap-2">
-                          <code className="flex-1 font-mono text-xs rounded-lg px-3 py-2 break-all" style={{ background: 'rgba(255,255,255,0.06)', color: '#9d94f0' }}>
+                          <code className="flex-1 font-mono text-xs rounded-lg px-3 py-2 break-all" style={{ background: 'var(--color-shade)', color: '#9d94f0' }}>
                             {setupData.secret}
                           </code>
-                          <button type="button" onClick={copySecret} className="flex-shrink-0 p-2 rounded-lg transition-all" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <button type="button" onClick={copySecret} className="flex-shrink-0 p-2 rounded-lg transition-all" style={{ background: 'var(--color-shade)' }}>
                             {secretCopied ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
                           </button>
                         </div>
@@ -489,7 +489,7 @@ export default function Setup2FAPage() {
                   </div>
 
                   {/* Backup codes grid */}
-                  <div className="rounded-2xl p-5 mb-4 font-mono" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="rounded-2xl p-5 mb-4 font-mono" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid var(--color-shade-md)' }}>
                     <div className="grid grid-cols-2 gap-2">
                       {backupCodes.map((code, i) => (
                         <div
@@ -508,8 +508,8 @@ export default function Setup2FAPage() {
                     onClick={copyBackupCodes}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold mb-5 transition-all duration-200"
                     style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'var(--color-shade)',
+                      border: '1px solid var(--color-border)',
                       color: 'var(--color-text)',
                     }}
                   >

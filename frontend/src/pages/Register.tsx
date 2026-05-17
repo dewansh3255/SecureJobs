@@ -164,9 +164,9 @@ export default function RegisterPage() {
 
             {/* Divider */}
             <div className="flex items-center gap-3 my-6">
-              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+              <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
               <span className="text-xs" style={{ color: 'var(--color-dim)' }}>or</span>
-              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+              <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
             </div>
 
             <p className="text-center text-sm" style={{ color: 'var(--color-muted)' }}>

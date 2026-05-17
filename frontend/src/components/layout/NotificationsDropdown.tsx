@@ -109,8 +109,8 @@ export default function NotificationsDropdown({ badgeCount }: Props) {
         onClick={() => setPinned(prev => !prev)}
         className="relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
         style={{
-          background: isOpen ? 'rgba(124,111,224,0.18)' : 'rgba(26,26,46,0.6)',
-          border: `1px solid ${isOpen ? 'rgba(124,111,224,0.45)' : 'rgba(255,255,255,0.07)'}`,
+          background: isOpen ? 'rgba(124,111,224,0.18)' : "var(--color-card)",
+          border: `1px solid ${isOpen ? 'rgba(124,111,224,0.45)' : 'var(--color-border)'}`,
           color: isOpen ? '#9d94f0' : 'var(--color-muted)',
         }}
         title="Notifications"
@@ -181,10 +181,10 @@ export default function NotificationsDropdown({ badgeCount }: Props) {
                 <div className="p-4 space-y-3">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="flex items-center gap-3 animate-pulse">
-                      <div className="w-9 h-9 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <div className="w-9 h-9 rounded-xl flex-shrink-0" style={{ background: 'var(--color-shade)' }} />
                       <div className="flex-1 space-y-1.5">
-                        <div className="h-3 rounded-lg w-3/4" style={{ background: 'rgba(255,255,255,0.06)' }} />
-                        <div className="h-2 rounded-lg w-1/3" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                        <div className="h-3 rounded-lg w-3/4" style={{ background: 'var(--color-shade)' }} />
+                        <div className="h-2 rounded-lg w-1/3" style={{ background: 'var(--color-shade)' }} />
                       </div>
                     </div>
                   ))}
@@ -204,7 +204,7 @@ export default function NotificationsDropdown({ badgeCount }: Props) {
                       background: n.read ? 'transparent' : 'rgba(124,111,224,0.06)',
                       borderBottom: '1px solid var(--color-border)',
                     }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-shade)'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = n.read ? 'transparent' : 'rgba(124,111,224,0.06)'}
                   >
                     {/* Avatar with icon badge */}

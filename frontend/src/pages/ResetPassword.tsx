@@ -203,7 +203,7 @@ export default function ResetPasswordPage() {
                               key={i}
                               className="flex-1 h-1 rounded-full transition-all duration-300"
                               style={{
-                                background: i <= strength.score ? strength.color : 'rgba(255,255,255,0.08)',
+                                background: i <= strength.score ? strength.color : 'var(--color-shade-md)',
                               }}
                             />
                           ))}
