@@ -1,6 +1,7 @@
 /**
  * Messaging Routes
  * GET    /messages/conversations         — list conversations
+ * GET    /messages/unread-count          — total unread message count
  * POST   /messages/conversations         — create/get direct conversation
  * GET    /messages/conversations/:id     — single conversation with messages
  * POST   /messages/conversations/:id     — send message to conversation
@@ -15,6 +16,24 @@ import Message from '../models/Message';
 import logger from '../utils/logger';
 
 const router = Router();
+
+// ──────────────────────────────────────────────
+// GET /messages/unread-count — total unread messages for current user
+// ──────────────────────────────────────────────
+router.get('/unread-count', protect, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const count = await Message.countDocuments({
+      'recipients.user': userId,
+      'recipients.readAt': { $exists: false },
+      sender: { $ne: userId },
+    });
+    return res.json({ success: true, data: { count } });
+  } catch (error) {
+    logger.error('Unread message count error', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // ──────────────────────────────────────────────
 // GET /messages/conversations — list user's conversations

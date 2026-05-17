@@ -10,6 +10,8 @@ import MainLayout from './components/layout/MainLayout';
 // Pages
 import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
+import ForgotPasswordPage from './pages/ForgotPassword';
+import ResetPasswordPage from './pages/ResetPassword';
 import FeedPage from './pages/Feed';
 import NetworkPage from './pages/Network';
 import JobsPage from './pages/Jobs';
@@ -45,6 +47,8 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* 2FA Setup — needs auth, but NOT the 2FA guard (that's for subsequent visits) */}
               <Route

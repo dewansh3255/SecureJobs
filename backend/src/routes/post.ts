@@ -73,17 +73,37 @@ router.get('/feed', protect, async (req: Request, res: Response) => {
       }),
     ]);
 
-    // Attach comment counts
+    // Attach comment counts and latest comment per post
     const postIds = posts.map((p) => p._id);
-    const commentCounts = await Comment.aggregate([
-      { $match: { post: { $in: postIds }, isDeleted: false } },
-      { $group: { _id: '$post', count: { $sum: 1 } } },
+    const [commentCounts, latestComments] = await Promise.all([
+      Comment.aggregate([
+        { $match: { post: { $in: postIds }, isDeleted: false } },
+        { $group: { _id: '$post', count: { $sum: 1 } } },
+      ]),
+      Comment.aggregate([
+        { $match: { post: { $in: postIds }, isDeleted: false, parentComment: null } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: '$post', latestComment: { $first: '$$ROOT' } } },
+      ]).then(async (rows) => {
+        // Populate author for each latest comment
+        const authorIds = rows.map((r) => r.latestComment.author);
+        const authors = await User.find({ _id: { $in: authorIds } })
+          .select('firstName lastName profilePicture')
+          .lean();
+        const authorMap = new Map(authors.map((a) => [String(a._id), a]));
+        return rows.map((r) => ({
+          postId: String(r._id),
+          comment: { ...r.latestComment, author: authorMap.get(String(r.latestComment.author)) },
+        }));
+      }),
     ]);
     const countMap = new Map(commentCounts.map((c) => [String(c._id), c.count]));
+    const latestCommentMap = new Map(latestComments.map((r) => [r.postId, r.comment]));
 
     const enriched = posts.map((p) => ({
       ...p,
       commentCount: countMap.get(String(p._id)) || p.commentCount || 0,
+      latestComment: latestCommentMap.get(String(p._id)) || null,
     }));
 
     return res.json({

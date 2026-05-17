@@ -3,12 +3,13 @@ import { cn } from '@utils/index';
 
 export interface AvatarProps extends ImgHTMLAttributes<HTMLImageElement> {
   name?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   isOnline?: boolean;
   fallback?: React.ReactNode;
 }
 
 const sizeClasses = {
+  xs: 'w-7 h-7',
   sm: 'w-8 h-8',
   md: 'w-10 h-10',
   lg: 'w-12 h-12',
@@ -47,14 +48,16 @@ const Avatar = forwardRef<HTMLImageElement, AvatarProps>(
               {...props}
             />
           ) : (
-            <span className="text-sm tracking-wide">{fallback || initials}</span>
+            <span className={cn('tracking-wide font-semibold', (size === 'xs' || size === 'sm') ? 'text-xs' : 'text-sm')}>
+              {fallback || initials}
+            </span>
           )}
         </div>
         {isOnline && (
           <span
             className={cn(
               'absolute bottom-0.5 right-0.5 rounded-full bg-emerald-500',
-              size === 'sm' ? 'w-2 h-2' : 'w-2.5 h-2.5'
+              (size === 'xs' || size === 'sm') ? 'w-2 h-2' : 'w-2.5 h-2.5'
             )}
             style={{ border: '2px solid var(--color-surface)' }}
           />

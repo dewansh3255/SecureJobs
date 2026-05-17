@@ -18,6 +18,13 @@ interface Reaction {
   love: string[]; insightful: string[]; curious: string[];
 }
 
+interface Comment {
+  _id: string;
+  content: string;
+  author: { _id: string; firstName: string; lastName: string; profilePicture?: string };
+  createdAt: string;
+}
+
 interface Post {
   _id: string;
   author: { _id: string; firstName: string; lastName: string; profilePicture?: string; headline?: string };
@@ -25,6 +32,7 @@ interface Post {
   reactions: Reaction;
   reactionCount: number;
   commentCount: number;
+  latestComment?: Comment | null;
   visibility: string;
   isEdited: boolean;
   isDeleted: boolean;
@@ -171,13 +179,55 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showReactions, setShowReactions] = useState(false);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
   const reactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qc = useQueryClient();
 
   const reactMutation = useMutation({
     mutationFn: (type: string) => apiService.posts.react(post._id, type),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['feed'] }),
-    onError: () => toast.error('Could not react'),
+    onMutate: async (type: string) => {
+      // Cancel in-flight feed fetches
+      await qc.cancelQueries({ queryKey: ['feed'] });
+
+      // Snapshot all feed pages for rollback
+      const previousData = qc.getQueriesData<FeedPage>({ queryKey: ['feed'] });
+
+      // Optimistically update every cached feed page
+      qc.setQueriesData<FeedPage>({ queryKey: ['feed'] }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: old.data.map((p) => {
+            if (p._id !== post._id) return p;
+            const newReactions = { ...p.reactions } as Reaction;
+            // Remove user from all types
+            (Object.keys(newReactions) as (keyof Reaction)[]).forEach((k) => {
+              newReactions[k] = newReactions[k].filter((id) => id !== currentUserId);
+            });
+            // Toggle: if same type as current reaction, just remove. Otherwise add.
+            const wasActive = (p.reactions[type as keyof Reaction] ?? []).includes(currentUserId);
+            if (!wasActive) {
+              newReactions[type as keyof Reaction] = [
+                ...(newReactions[type as keyof Reaction] || []),
+                currentUserId,
+              ];
+            }
+            const newCount = (Object.values(newReactions) as string[][]).reduce((s, ids) => s + ids.length, 0);
+            return { ...p, reactions: newReactions, reactionCount: newCount };
+          }),
+        };
+      });
+
+      return { previousData };
+    },
+    onError: (_err, _vars, context) => {
+      // Rollback
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => qc.setQueryData(queryKey, data));
+      }
+      toast.error('Could not react');
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['feed'] }),
   });
 
   const commentMutation = useMutation({
@@ -185,7 +235,9 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
     onSuccess: () => {
       setCommentText('');
       setShowCommentBox(false);
+      setCommentsExpanded(true);
       qc.invalidateQueries({ queryKey: ['feed'] });
+      qc.invalidateQueries({ queryKey: ['comments', post._id] });
       toast.success('Comment added');
     },
     onError: () => toast.error('Could not add comment'),
@@ -199,6 +251,16 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
     },
     onError: () => toast.error('Could not delete post'),
   });
+
+  // Fetch all comments when expanded
+  const { data: commentsData, isLoading: commentsLoading } = useQuery({
+    queryKey: ['comments', post._id],
+    queryFn: () => apiService.posts.getComments(post._id).then(r => (r.data?.data?.comments ?? []) as Comment[]),
+    enabled: commentsExpanded,
+    staleTime: 30_000,
+  });
+
+  const allComments: Comment[] = commentsData ?? [];
 
   const userReaction = Object.entries(post.reactions).find(([, ids]) =>
     (ids as string[]).includes(currentUserId)
@@ -253,8 +315,8 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                 <div
                   className="absolute right-0 top-8 z-10 hidden group-hover:block min-w-[140px] rounded-xl overflow-hidden"
                   style={{
-                    background: 'rgba(19,19,31,0.98)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
                   }}
                 >
@@ -289,16 +351,115 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
             )}
           </div>
 
-          {/* Stats */}
+          {/* Stats bar */}
           {(post.reactionCount > 0 || post.commentCount > 0) && (
             <div
               className="px-5 pb-2 flex items-center justify-between text-xs"
               style={{ color: 'var(--color-dim)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
             >
               <span>{post.reactionCount > 0 ? `${post.reactionCount} reactions` : ''}</span>
-              <span>{post.commentCount > 0 ? `${post.commentCount} comments` : ''}</span>
+              {post.commentCount > 0 && (
+                <button
+                  onClick={() => setCommentsExpanded(prev => !prev)}
+                  className="hover:underline transition-colors"
+                  style={{ color: 'var(--color-dim)' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#9d94f0'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-dim)'}
+                >
+                  {post.commentCount} comment{post.commentCount !== 1 ? 's' : ''}
+                </button>
+              )}
             </div>
           )}
+
+          {/* Latest comment preview (when not expanded) */}
+          {!commentsExpanded && post.latestComment && post.commentCount > 0 && (
+            <div className="px-5 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="flex gap-2.5">
+                <Avatar
+                  name={`${post.latestComment.author.firstName} ${post.latestComment.author.lastName}`}
+                  src={post.latestComment.author.profilePicture}
+                  size="xs"
+                />
+                <div
+                  className="flex-1 px-3 py-2 rounded-xl text-xs"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                  <span className="font-semibold mr-1.5" style={{ color: 'var(--color-text)' }}>
+                    {post.latestComment.author.firstName} {post.latestComment.author.lastName}
+                  </span>
+                  <span style={{ color: 'var(--color-muted)' }}>{post.latestComment.content}</span>
+                </div>
+              </div>
+              {post.commentCount > 1 && (
+                <button
+                  onClick={() => setCommentsExpanded(true)}
+                  className="mt-2 ml-9 text-xs font-semibold transition-colors"
+                  style={{ color: '#9d94f0' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#b3abf5'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = '#9d94f0'}
+                >
+                  View all {post.commentCount} comments
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Expanded comments */}
+          <AnimatePresence>
+            {commentsExpanded && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+              >
+                <div className="px-5 pt-3 pb-2 space-y-3">
+                  {commentsLoading ? (
+                    [1, 2].map(i => (
+                      <div key={i} className="flex gap-2 animate-pulse">
+                        <div className="w-7 h-7 rounded-xl flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                        <div className="flex-1 h-8 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                      </div>
+                    ))
+                  ) : allComments.length === 0 ? (
+                    <p className="text-xs py-2" style={{ color: 'var(--color-dim)' }}>No comments yet</p>
+                  ) : (
+                    allComments.map(c => (
+                      <div key={c._id} className="flex gap-2.5">
+                        <Avatar
+                          name={`${c.author.firstName} ${c.author.lastName}`}
+                          src={c.author.profilePicture}
+                          size="xs"
+                        />
+                        <div
+                          className="flex-1 px-3 py-2 rounded-xl text-xs"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+                        >
+                          <span className="font-semibold mr-1.5" style={{ color: 'var(--color-text)' }}>
+                            {c.author.firstName} {c.author.lastName}
+                          </span>
+                          <span style={{ color: 'var(--color-muted)' }}>{c.content}</span>
+                          <p className="mt-1" style={{ color: 'var(--color-dim)', fontSize: '10px' }}>
+                            {timeAgo(c.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <button
+                    onClick={() => setCommentsExpanded(false)}
+                    className="text-xs font-semibold transition-colors pb-1"
+                    style={{ color: 'var(--color-dim)' }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-muted)'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--color-dim)'}
+                  >
+                    ↑ Collapse comments
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Action buttons */}
           <div className="px-3 py-1 flex items-center gap-1">
@@ -338,8 +499,8 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
                     exit={{ opacity: 0, scale: 0.9, y: 8 }}
                     className="absolute bottom-full left-0 mb-2 rounded-2xl px-2 py-1.5 flex gap-1 z-20"
                     style={{
-                      background: 'rgba(19,19,31,0.98)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'var(--color-surface)',
+                      border: '1px solid var(--color-border)',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
                     }}
                   >
@@ -360,7 +521,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId: string }
             </div>
 
             <button
-              onClick={() => setShowCommentBox(!showCommentBox)}
+              onClick={() => { setShowCommentBox(!showCommentBox); if (!showCommentBox) setCommentsExpanded(true); }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200"
               style={{ color: 'var(--color-muted)' }}
               onMouseEnter={e => {

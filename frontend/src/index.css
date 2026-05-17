@@ -22,6 +22,9 @@
   --color-red:      #e05555;
   --dock-width:     68px;
   --header-height:  52px;
+  --dock-bg:        rgba(13,13,21,0.88);
+  --dock-border:    rgba(255,255,255,0.07);
+  --tooltip-bg:     rgba(26,26,46,0.97);
 }
 
 /* ===========================================
@@ -276,8 +279,23 @@
   }
 
   /* ── Light mode overrides ── */
+  html:not(.dark) {
+    --color-bg:       #f4f4fb;
+    --color-surface:  #ececf6;
+    --color-card:     #ffffff;
+    --color-border:   rgba(26,26,46,0.1);
+    --color-border-accent: rgba(124,111,224,0.4);
+    --color-text:     #1a1a2e;
+    --color-muted:    #4a4a6a;
+    --color-dim:      #9898b4;
+    --toast-bg:       #ffffff;
+    --toast-color:    #1a1a2e;
+    --dock-bg:        rgba(240,240,252,0.92);
+    --dock-border:    rgba(26,26,46,0.12);
+    --tooltip-bg:     rgba(26,26,46,0.95);
+  }
   html:not(.dark) body {
-    background: #f5f5fc;
+    background: #f4f4fb;
     color: #1a1a2e;
   }
   html:not(.dark) .sp-card {

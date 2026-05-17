@@ -144,6 +144,7 @@ export const apiService = {
     react: (id: string, type: string) => api.post(`/posts/${id}/react`, { type }),
     addComment: (postId: string, content: string) =>
       api.post(`/posts/${postId}/comments`, { content }),
+    getComments: (postId: string) => api.get(`/posts/${postId}`),
     deleteComment: (postId: string, commentId: string) =>
       api.delete(`/posts/${postId}/comments/${commentId}`),
   },
@@ -159,6 +160,7 @@ export const apiService = {
       api.post(`/messages/conversations/${conversationId}`, { content }),
     markRead: (conversationId: string) =>
       api.patch(`/messages/conversations/${conversationId}/read`),
+    getUnreadCount: () => api.get('/messages/unread-count'),
   },
 
   // Jobs

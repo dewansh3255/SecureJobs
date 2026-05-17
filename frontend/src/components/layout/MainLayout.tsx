@@ -5,7 +5,6 @@ import {
   Users,
   Briefcase,
   MessageSquare,
-  Bell,
   Settings,
   LogOut,
   Shield,
@@ -18,15 +17,17 @@ import { ThemeToggle } from '@stores/themeStore';
 import { useAuth } from '@stores/authStore';
 import { useState } from 'react';
 import { useE2EKeys } from '@hooks/useE2EKeys';
+import { useQuery } from '@tanstack/react-query';
+import { apiService } from '@services/api';
+import NotificationsDropdown from './NotificationsDropdown';
 
 const navItems = [
-  { name: 'Home',          href: '/',             icon: Home },
-  { name: 'Network',       href: '/network',      icon: Users },
-  { name: 'Messages',      href: '/messaging',    icon: MessageSquare, badge: true },
-  { name: 'Jobs',          href: '/jobs',         icon: Briefcase },
-  { name: 'Notifications', href: '/notifications',icon: Bell },
-  { name: 'Explore',       href: '/network',      icon: Compass },
-  { name: 'Saved',         href: '/jobs',         icon: Bookmark },
+  { name: 'Home',    href: '/',          icon: Home },
+  { name: 'Network', href: '/network',   icon: Users },
+  { name: 'Messages',href: '/messaging', icon: MessageSquare, badge: true },
+  { name: 'Jobs',    href: '/jobs',      icon: Briefcase },
+  { name: 'Explore', href: '/network',   icon: Compass },
+  { name: 'Saved',   href: '/jobs',      icon: Bookmark },
 ];
 
 const PAGE_LABELS: Record<string, string> = {
@@ -48,6 +49,24 @@ export default function MainLayout() {
 
   // Initialize E2E encryption key pair (background, non-blocking)
   useE2EKeys();
+
+  // Real-time badge counts
+  const { data: notifCount } = useQuery({
+    queryKey: ['unread-notif-count'],
+    queryFn: () => apiService.notifications.getUnreadCount().then(r => r.data?.data?.count ?? 0),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const { data: msgCount } = useQuery({
+    queryKey: ['unread-msg-count'],
+    queryFn: () => apiService.messages.getUnreadCount().then(r => r.data?.data?.count ?? 0),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const unreadNotif = notifCount ?? 0;
+  const unreadMsg = msgCount ?? 0;
 
   const handleLogout = async () => {
     await logout();
@@ -78,10 +97,10 @@ export default function MainLayout() {
         className="fixed left-0 top-0 bottom-0 z-50 flex flex-col items-center py-5 gap-1"
         style={{
           width: 'var(--dock-width)',
-          background: 'rgba(13,13,21,0.85)',
+          background: 'var(--dock-bg)',
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          borderRight: '1px solid rgba(255,255,255,0.07)',
+          borderRight: '1px solid var(--dock-border)',
         }}
       >
         {/* Logo */}
@@ -127,20 +146,20 @@ export default function MainLayout() {
               }}
             >
               <item.icon className="w-5 h-5" />
-              {item.badge && (
+              {item.badge && unreadMsg > 0 && (
                 <span
-                  className="absolute top-1.5 right-1.5 w-4 h-4 flex items-center justify-center text-white text-[8px] font-bold rounded-full"
+                  className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 flex items-center justify-center text-white text-[8px] font-bold rounded-full px-0.5"
                   style={{ background: '#e06fbc', border: '2px solid var(--color-bg)' }}
                 >
-                  3
+                  {unreadMsg > 99 ? '99+' : unreadMsg}
                 </span>
               )}
               {/* Tooltip */}
               <span
                 className="absolute left-full ml-2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
                 style={{
-                  background: 'rgba(26,26,46,0.95)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'var(--tooltip-bg)',
+                  border: '1px solid var(--dock-border)',
                   color: 'var(--color-text)',
                   zIndex: 60,
                 }}
@@ -152,7 +171,7 @@ export default function MainLayout() {
         })}
 
         {/* Divider */}
-        <div className="w-7 h-px my-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
+        <div className="w-7 h-px my-1" style={{ background: 'var(--dock-border)' }} />
 
         {/* Secondary nav */}
         {navItems.slice(5).map((item) => (
@@ -175,8 +194,8 @@ export default function MainLayout() {
             <span
               className="absolute left-full ml-2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
               style={{
-                background: 'rgba(26,26,46,0.95)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'var(--tooltip-bg)',
+                border: '1px solid var(--dock-border)',
                 color: 'var(--color-text)',
                 zIndex: 60,
               }}
@@ -248,10 +267,10 @@ export default function MainLayout() {
         style={{
           left: 'var(--dock-width)',
           height: 'var(--header-height)',
-          background: 'rgba(6,6,8,0.75)',
+          background: 'var(--dock-bg)',
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--dock-border)',
         }}
       >
         {/* Breadcrumb */}
@@ -312,25 +331,8 @@ export default function MainLayout() {
 
         {/* Right actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Notifications */}
-          <Link
-            to="/notifications"
-            className="relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
-            style={{
-              background: 'rgba(26,26,46,0.6)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              color: 'var(--color-muted)',
-            }}
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            <span
-              className="absolute top-0.5 right-0.5 w-3.5 h-3.5 flex items-center justify-center text-white text-[8px] font-bold rounded-full"
-              style={{ background: '#e06fbc', border: '2px solid var(--color-bg)' }}
-            >
-              5
-            </span>
-          </Link>
+          {/* Notifications dropdown */}
+          <NotificationsDropdown badgeCount={unreadNotif} />
 
           {/* Theme toggle */}
           <ThemeToggle />
