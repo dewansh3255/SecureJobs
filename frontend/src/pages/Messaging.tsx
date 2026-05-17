@@ -3,14 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  MessageCircle, Send, Search, ArrowLeft, Loader2, UserPlus
+  MessageCircle, Send, Search, ArrowLeft, Loader2, UserPlus, Lock
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
 import { Avatar } from '@components/ui/Avatar';
 import { Button } from '@components/ui/Button';
-import { Card } from '@components/ui/Card';
+import { encryptMessage, decryptMessage, isEncrypted, type EncryptedMessage } from '@services/crypto';
 
 /* ─── Types ─── */
 interface Participant {
@@ -50,10 +50,10 @@ function fmtMsgDate(d: string) {
 function ConvSkeleton() {
   return (
     <div className="flex items-center gap-3 p-3 animate-pulse">
-      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-700 shrink-0" />
+      <div className="w-10 h-10 rounded-xl bg-white/5 shrink-0" />
       <div className="flex-1 space-y-1.5">
-        <div className="h-3 bg-gray-200 dark:bg-dark-700 rounded w-2/3" />
-        <div className="h-2 bg-gray-200 dark:bg-dark-700 rounded w-1/2" />
+        <div className="h-3 bg-white/5 rounded w-2/3" />
+        <div className="h-2 bg-white/5 rounded w-1/2" />
       </div>
     </div>
   );
@@ -80,19 +80,20 @@ function NewConversationPanel({ onCreated }: { onCreated: (convId: string) => vo
   const users: Participant[] = data?.data ?? [];
 
   return (
-    <div className="p-4 border-b border-gray-100 dark:border-dark-700">
+    <div className="p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-dim)' }} />
         <input
           type="text"
           value={q}
           onChange={e => setQ(e.target.value)}
           placeholder="Search people to message…"
-          className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 dark:border-dark-600 bg-gray-50 dark:bg-dark-700 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-linkedin-500"
+          className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
+          style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--color-text)' }}
           autoFocus
         />
       </div>
-      {isLoading && <div className="flex justify-center mt-3"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>}
+      {isLoading && <div className="flex justify-center mt-3"><Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-muted)' }} /></div>}
       {users.length > 0 && (
         <div className="mt-2 space-y-1">
           {users.map(u => (
@@ -100,12 +101,12 @@ function NewConversationPanel({ onCreated }: { onCreated: (convId: string) => vo
               key={u._id}
               onClick={() => startConvMut.mutate(u._id)}
               disabled={startConvMut.isPending}
-              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-700 transition text-left"
+              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition text-left"
             >
               <Avatar name={`${u.firstName} ${u.lastName}`} src={u.profilePicture} size="sm" />
               <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{u.firstName} {u.lastName}</p>
-                {u.headline && <p className="text-xs text-gray-400 truncate">{u.headline}</p>}
+                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{u.firstName} {u.lastName}</p>
+                {u.headline && <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{u.headline}</p>}
               </div>
             </button>
           ))}
@@ -124,6 +125,8 @@ export default function MessagingPage() {
   const [message, setMessage] = useState('');
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [recipientPublicKey, setRecipientPublicKey] = useState<JsonWebKey | null>(null);
+  const [decryptedCache, setDecryptedCache] = useState<Record<string, string>>({});
 
   /* Conversations list */
   const { data: convsData, isLoading: convsLoading } = useQuery({
@@ -144,6 +147,10 @@ export default function MessagingPage() {
   });
   const messages: Message[] = msgsData?.data ?? [];
 
+  /* Derived: identify the other person in the selected conversation */
+  const currentConv = conversations.find(c => c._id === selectedConv);
+  const otherPerson = currentConv && user ? getOther(currentConv, user.id) : null;
+
   /* Auto-scroll to bottom */
   useEffect(() => {
     if (messages.length > 0) {
@@ -159,21 +166,68 @@ export default function MessagingPage() {
     }
   }, [selectedConv, qc]);
 
-  /* Send message */
+  /* Fetch recipient's public key when conversation changes */
+  useEffect(() => {
+    setRecipientPublicKey(null);
+    if (!otherPerson) return;
+    apiService.users.getPublicKey(otherPerson._id)
+      .then(r => {
+        const pk = r.data?.data?.publicKey;
+        if (pk) setRecipientPublicKey(JSON.parse(pk) as JsonWebKey);
+      })
+      .catch(() => {}); // silently ignore — messages fall back to plaintext
+  }, [otherPerson?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Decrypt encrypted messages whenever messages or the public key changes */
+  useEffect(() => {
+    if (!recipientPublicKey || messages.length === 0) return;
+    const encMsgs = messages.filter(m => {
+      try { return isEncrypted(JSON.parse(m.content)); } catch { return false; }
+    });
+    if (encMsgs.length === 0) return;
+
+    Promise.all(encMsgs.map(async m => {
+      try {
+        const parsed = JSON.parse(m.content) as EncryptedMessage;
+        const plaintext = await decryptMessage(recipientPublicKey, parsed);
+        return [m._id, plaintext] as const;
+      } catch {
+        return [m._id, '[Encrypted — unable to decrypt]'] as const;
+      }
+    })).then(results => {
+      setDecryptedCache(prev => {
+        const next = { ...prev };
+        results.forEach(([id, text]) => { next[id] = text; });
+        return next;
+      });
+    });
+  }, [messages, recipientPublicKey]);
+
+  /* Send message (encrypts if recipient public key is available) */
   const sendMut = useMutation({
     mutationFn: (content: string) =>
       apiService.messages.send(selectedConv!, content).then(r => r.data),
     onSuccess: () => {
-      setMessage('');
       qc.invalidateQueries({ queryKey: ['messages', selectedConv] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
     },
     onError: () => toast.error('Failed to send message'),
   });
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim() || !selectedConv) return;
-    sendMut.mutate(message.trim());
+    const plaintext = message.trim();
+    setMessage('');
+    let content = plaintext;
+    if (recipientPublicKey) {
+      try {
+        const encrypted = await encryptMessage(recipientPublicKey, plaintext);
+        content = JSON.stringify(encrypted);
+      } catch {
+        // Encryption failed — send as plaintext
+      }
+    }
+    sendMut.mutate(content);
   };
 
   const handleSelectConv = (convId: string) => {
@@ -182,21 +236,24 @@ export default function MessagingPage() {
     setMobileShowThread(true);
   };
 
-  const currentConv = conversations.find(c => c._id === selectedConv);
-  const otherPerson = currentConv && user ? getOther(currentConv, user.id) : null;
-
   return (
     <div className="max-w-5xl mx-auto h-[calc(100vh-8rem)]">
-      <Card className="h-full flex overflow-hidden">
+      <div className="h-full flex overflow-hidden sp-card rounded-2xl">
 
         {/* Left panel: conversation list */}
-        <div className={`${mobileShowThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 xl:w-96 border-r border-gray-100 dark:border-dark-700 shrink-0`}>
+        <div className={`${mobileShowThread ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 xl:w-96 shrink-0`}
+          style={{ borderRight: '1px solid rgba(255,255,255,0.07)' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-dark-700">
-            <h2 className="font-bold text-gray-900 dark:text-gray-100 text-lg">Messages</h2>
+          <div className="flex items-center justify-between px-4 py-3"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Messages</h2>
             <button
               onClick={() => setShowNew(!showNew)}
-              className={`p-2 rounded-full transition ${showNew ? 'bg-linkedin-100 dark:bg-linkedin-900/30 text-linkedin-600' : 'hover:bg-gray-100 dark:hover:bg-dark-700 text-gray-500 dark:text-gray-400'}`}
+              className="p-2 rounded-xl transition"
+              style={{
+                background: showNew ? 'rgba(124,111,224,0.2)' : 'transparent',
+                color: showNew ? 'var(--color-accent)' : 'var(--color-muted)',
+              }}
             >
               <UserPlus className="w-5 h-5" />
             </button>
@@ -217,11 +274,12 @@ export default function MessagingPage() {
               Array.from({ length: 5 }).map((_, i) => <ConvSkeleton key={i} />)
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center">
-                <MessageCircle className="w-10 h-10 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
-                <p className="text-sm text-gray-500 dark:text-gray-400">No conversations yet</p>
+                <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-20" style={{ color: 'var(--color-accent)' }} />
+                <p className="text-sm" style={{ color: 'var(--color-muted)' }}>No conversations yet</p>
                 <button
                   onClick={() => setShowNew(true)}
-                  className="text-sm text-linkedin-600 hover:underline mt-1"
+                  className="text-sm mt-1 hover:underline"
+                  style={{ color: 'var(--color-accent)' }}
                 >
                   Start one
                 </button>
@@ -234,26 +292,42 @@ export default function MessagingPage() {
                   <button
                     key={conv._id}
                     onClick={() => handleSelectConv(conv._id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 transition text-left ${isActive ? 'bg-linkedin-50 dark:bg-linkedin-900/20 border-r-2 border-linkedin-600' : 'hover:bg-gray-50 dark:hover:bg-dark-700'}`}
+                    className="w-full flex items-center gap-3 px-4 py-3 transition text-left"
+                    style={isActive ? {
+                      background: 'rgba(124,111,224,0.12)',
+                      borderRight: '2px solid var(--color-accent)',
+                    } : {}}
                   >
                     <div className="relative shrink-0">
                       <Avatar name={`${other.firstName} ${other.lastName}`} src={other.profilePicture} size="md" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between">
-                        <p className={`text-sm truncate ${isActive ? 'font-bold text-linkedin-700 dark:text-linkedin-300' : 'font-semibold text-gray-900 dark:text-gray-100'}`}>
+                        <p className="text-sm truncate" style={{
+                          color: isActive ? 'var(--color-accent)' : 'var(--color-text)',
+                          fontWeight: isActive ? 700 : 600,
+                        }}>
                           {other.firstName} {other.lastName}
                         </p>
-                        <span className="text-xs text-gray-400 shrink-0 ml-2">
+                        <span className="text-xs shrink-0 ml-2" style={{ color: 'var(--color-dim)' }}>
                           {conv.lastMessage ? fmtMsgDate(conv.lastMessage.createdAt) : ''}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
-                        {conv.lastMessage?.content ?? 'No messages yet'}
+                      <p className="text-xs truncate" style={{ color: 'var(--color-dim)' }}>
+                        {(() => {
+                          const raw = conv.lastMessage?.content;
+                          if (!raw) return 'No messages yet';
+                          try {
+                            const p = JSON.parse(raw);
+                            if (isEncrypted(p)) return '🔒 Encrypted message';
+                          } catch { /* plain text */ }
+                          return raw;
+                        })()}
                       </p>
                     </div>
                     {(conv.unreadCount ?? 0) > 0 && (
-                      <span className="bg-linkedin-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                      <span className="text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0"
+                        style={{ background: 'var(--color-accent)' }}>
                         {conv.unreadCount}
                       </span>
                     )}
@@ -268,29 +342,37 @@ export default function MessagingPage() {
         <div className={`${!mobileShowThread ? 'hidden lg:flex' : 'flex'} flex-1 flex-col overflow-hidden`}>
           {!selectedConv ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-400 dark:text-gray-500">
-                <MessageCircle className="w-14 h-14 mx-auto mb-3 opacity-30" />
-                <p className="text-lg font-medium">Select a conversation</p>
-                <p className="text-sm mt-1">Choose from the list or start a new one</p>
+              <div className="text-center">
+                <MessageCircle className="w-14 h-14 mx-auto mb-3 opacity-20" style={{ color: 'var(--color-accent)' }} />
+                <p className="text-lg font-medium" style={{ color: 'var(--color-muted)' }}>Select a conversation</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-dim)' }}>Choose from the list or start a new one</p>
               </div>
             </div>
           ) : (
             <>
               {/* Thread header */}
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-dark-700 bg-white dark:bg-dark-800">
+              <div className="flex items-center gap-3 px-4 py-3"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'var(--color-surface)' }}>
                 <button
                   onClick={() => setMobileShowThread(false)}
-                  className="lg:hidden p-1.5 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-full"
+                  className="lg:hidden p-1.5 rounded-xl hover:bg-white/5 transition"
                 >
-                  <ArrowLeft className="w-5 h-5 text-gray-500" />
+                  <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
                 </button>
                 {otherPerson && (
                   <>
                     <Avatar name={`${otherPerson.firstName} ${otherPerson.lastName}`} src={otherPerson.profilePicture} size="md" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{otherPerson.firstName} {otherPerson.lastName}</p>
-                      {otherPerson.headline && <p className="text-xs text-gray-400 truncate">{otherPerson.headline}</p>}
+                      <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>{otherPerson.firstName} {otherPerson.lastName}</p>
+                      {otherPerson.headline && <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{otherPerson.headline}</p>}
                     </div>
+                    {recipientPublicKey && (
+                      <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+                        style={{ background: 'rgba(111,224,160,0.1)', color: '#6fe0a0' }}>
+                        <Lock className="w-3 h-3" />
+                        <span className="hidden sm:inline">E2E encrypted</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -298,9 +380,9 @@ export default function MessagingPage() {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {msgsLoading ? (
-                  <div className="flex justify-center pt-8"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
+                  <div className="flex justify-center pt-8"><Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-muted)' }} /></div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+                  <div className="text-center py-12" style={{ color: 'var(--color-dim)' }}>
                     <p>Say hello! 👋</p>
                   </div>
                 ) : (
@@ -312,7 +394,8 @@ export default function MessagingPage() {
                         <div key={msg._id}>
                           {showDate && (
                             <div className="text-center my-3">
-                              <span className="text-xs text-gray-400 bg-gray-100 dark:bg-dark-700 px-3 py-0.5 rounded-full">
+                              <span className="text-xs px-3 py-0.5 rounded-full"
+                                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-muted)' }}>
                                 {fmtMsgDate(msg.createdAt)}
                               </span>
                             </div>
@@ -331,14 +414,33 @@ export default function MessagingPage() {
                               />
                             )}
                             <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
-                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                                isMe
-                                  ? 'bg-linkedin-600 text-white rounded-br-md'
-                                  : 'bg-gray-100 dark:bg-dark-700 text-gray-900 dark:text-gray-100 rounded-bl-md'
-                              }`}>
-                                {msg.content}
+                              <div className="px-4 py-2.5 rounded-2xl text-sm leading-relaxed"
+                                style={isMe ? {
+                                  background: 'linear-gradient(135deg, #7c6fe0, #9a8fec)',
+                                  color: '#fff',
+                                  borderBottomRightRadius: '4px',
+                                } : {
+                                  background: 'rgba(255,255,255,0.08)',
+                                  color: 'var(--color-text)',
+                                  borderBottomLeftRadius: '4px',
+                                }}>
+                                {(() => {
+                                  try {
+                                    const parsed = JSON.parse(msg.content);
+                                    if (isEncrypted(parsed)) {
+                                      const decrypted = decryptedCache[msg._id];
+                                      return (
+                                        <span>
+                                          <Lock className="inline w-3 h-3 mr-1 opacity-70 -mt-0.5" />
+                                          {decrypted ?? <span className="opacity-50 italic text-xs">Decrypting…</span>}
+                                        </span>
+                                      );
+                                    }
+                                  } catch { /* not JSON */ }
+                                  return msg.content;
+                                })()}
                               </div>
-                              <span className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 px-1">
+                              <span className="text-xs mt-0.5 px-1" style={{ color: 'var(--color-dim)' }}>
                                 {format(new Date(msg.createdAt), 'p')}
                               </span>
                             </div>
@@ -352,7 +454,7 @@ export default function MessagingPage() {
               </div>
 
               {/* Input */}
-              <div className="px-4 py-3 border-t border-gray-100 dark:border-dark-700 bg-white dark:bg-dark-800">
+              <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)', background: 'var(--color-surface)' }}>
                 <div className="flex items-end gap-2">
                   <textarea
                     value={message}
@@ -363,8 +465,13 @@ export default function MessagingPage() {
                     placeholder="Type a message… (Enter to send)"
                     rows={1}
                     maxLength={2000}
-                    className="flex-1 px-4 py-2.5 rounded-2xl border border-gray-200 dark:border-dark-600 bg-gray-50 dark:bg-dark-700 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-linkedin-500 resize-none"
-                    style={{ minHeight: '44px', maxHeight: '120px' }}
+                    className="flex-1 px-4 py-2.5 rounded-2xl text-sm outline-none resize-none"
+                    style={{
+                      minHeight: '44px', maxHeight: '120px',
+                      background: 'var(--color-bg)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'var(--color-text)',
+                    }}
                     onInput={e => {
                       const el = e.currentTarget;
                       el.style.height = 'auto';
@@ -383,7 +490,7 @@ export default function MessagingPage() {
             </>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

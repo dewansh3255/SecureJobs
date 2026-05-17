@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
-import { Card } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Avatar } from '@components/ui/Avatar';
 import { Badge } from '@components/ui/Badge';
@@ -63,16 +62,16 @@ interface ProfileData {
 function ProfileSkeleton() {
   return (
     <div className="animate-pulse space-y-4">
-      <div className="h-40 bg-gray-200 dark:bg-dark-700 rounded-xl" />
-      <Card className="p-6 space-y-4">
+      <div className="h-40 rounded-2xl bg-white/5" />
+      <div className="sp-card rounded-2xl p-6 space-y-4">
         <div className="flex gap-4">
-          <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-dark-700 -mt-16 ring-4 ring-white dark:ring-dark-800" />
+          <div className="w-24 h-24 rounded-2xl bg-white/5 -mt-16" />
           <div className="flex-1 space-y-2 mt-2">
-            <div className="h-5 bg-gray-200 dark:bg-dark-700 rounded w-1/3" />
-            <div className="h-3 bg-gray-200 dark:bg-dark-700 rounded w-1/2" />
+            <div className="h-5 bg-white/5 rounded w-1/3" />
+            <div className="h-3 bg-white/5 rounded w-1/2" />
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -80,17 +79,17 @@ function ProfileSkeleton() {
 /* ─── Section wrapper ─── */
 function Section({ title, onAdd, children }: { title: string; onAdd?: () => void; children: React.ReactNode }) {
   return (
-    <Card className="p-6">
+    <div className="sp-card rounded-2xl p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{title}</h2>
+        <h2 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>{title}</h2>
         {onAdd && (
-          <button onClick={onAdd} className="p-1.5 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-full transition">
-            <Plus className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          <button onClick={onAdd} className="p-1.5 rounded-xl hover:bg-white/5 transition">
+            <Plus className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
           </button>
         )}
       </div>
       {children}
-    </Card>
+    </div>
   );
 }
 
@@ -130,11 +129,12 @@ function EditBasicModal({ profile, onClose }: { profile: ProfileData; onClose: (
         <LabelInput label="Website" value={form.website} onChange={v => setForm(f => ({...f, website: v}))} />
         <LabelInput label="Industry" value={form.industry} onChange={v => setForm(f => ({...f, industry: v}))} />
         <div>
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">About</label>
+          <label className="text-xs font-medium uppercase tracking-wider block mb-1" style={{ color: 'var(--color-muted)' }}>About</label>
           <textarea
             rows={4} value={form.about} maxLength={2600}
             onChange={e => setForm(f => ({...f, about: e.target.value}))}
-            className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-dark-600 bg-gray-50 dark:bg-dark-700 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-linkedin-500 resize-none"
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none resize-none"
+            style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }}
           />
         </div>
         <Button className="w-full" onClick={() => mut.mutate()} isLoading={mut.isPending}>Save</Button>
@@ -172,7 +172,7 @@ function ExperienceModal({ item, onClose }: { item?: Experience; onClose: () => 
           <LabelInput label="Start Date" type="month" value={form.startDate} onChange={v => setForm(f => ({...f, startDate: v}))} />
           {!form.current && <LabelInput label="End Date" type="month" value={form.endDate ?? ''} onChange={v => setForm(f => ({...f, endDate: v}))} />}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--color-muted)' }}>
           <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({...f, current: e.target.checked, endDate: undefined}))}
             className="w-4 h-4 accent-linkedin-600" />
           I currently work here
@@ -209,7 +209,7 @@ function EducationModal({ item, onClose }: { item?: Education; onClose: () => vo
           <LabelInput label="Start Date" type="month" value={form.startDate} onChange={v => setForm(f => ({...f, startDate: v}))} />
           {!form.current && <LabelInput label="End Date" type="month" value={form.endDate ?? ''} onChange={v => setForm(f => ({...f, endDate: v}))} />}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--color-muted)' }}>
           <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({...f, current: e.target.checked, endDate: undefined}))}
             className="w-4 h-4 accent-linkedin-600" />
           Currently enrolled
@@ -224,14 +224,16 @@ function EducationModal({ item, onClose }: { item?: Education; onClose: () => vo
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
-        className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-dark-700">
-          <h2 className="font-bold text-gray-900 dark:text-gray-100">{title}</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-full">
-            <X className="w-5 h-5 text-gray-400" />
+        className="sp-card rounded-2xl w-full max-w-lg overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <h2 className="font-bold" style={{ color: 'var(--color-text)' }}>{title}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-white/5 transition">
+            <X className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
           </button>
         </div>
         <div className="p-6">{children}</div>
@@ -243,9 +245,10 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 function LabelInput({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
   return (
     <div>
-      <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">{label}</label>
+      <label className="text-xs font-medium uppercase tracking-wider block mb-1" style={{ color: 'var(--color-muted)' }}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-dark-600 bg-gray-50 dark:bg-dark-700 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-linkedin-500" />
+        className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+        style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }} />
     </div>
   );
 }
@@ -318,17 +321,18 @@ export default function ProfilePage() {
 
   if (isLoading) return <ProfileSkeleton />;
   if (isError || !profile) return (
-    <Card className="p-10 text-center">
-      <p className="text-gray-500 dark:text-gray-400 mb-3">Profile not found</p>
+    <div className="sp-card rounded-2xl p-10 text-center">
+      <p className="mb-3" style={{ color: 'var(--color-muted)' }}>Profile not found</p>
       <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
-    </Card>
+    </div>
   );
 
   return (
     <div className="max-w-3xl mx-auto pb-12 space-y-4">
       {/* Cover + Avatar */}
       <div>
-        <div className="relative h-44 rounded-t-2xl overflow-hidden bg-gradient-to-br from-linkedin-600 to-blue-700">
+        <div className="relative h-44 rounded-2xl overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #7c6fe0 0%, #e06fbc 100%)' }}>
           {profile.coverImage && (
             <img src={profile.coverImage} alt="cover" className="w-full h-full object-cover" />
           )}
@@ -336,9 +340,10 @@ export default function ProfilePage() {
             <>
               <button
                 onClick={() => coverInputRef.current?.click()}
-                className="absolute bottom-3 right-3 bg-black/40 hover:bg-black/60 text-white p-2 rounded-full transition"
+                className="absolute bottom-3 right-3 p-2 rounded-xl transition"
+                style={{ background: 'rgba(0,0,0,0.5)' }}
               >
-                <Camera className="w-4 h-4" />
+                <Camera className="w-4 h-4 text-white" />
               </button>
               <input
                 ref={coverInputRef} type="file" accept="image/*" className="hidden"
@@ -348,7 +353,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        <Card className="rounded-t-none p-6">
+        <div className="sp-card rounded-t-none rounded-b-2xl p-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             {/* Avatar */}
             <div className="relative -mt-20 shrink-0">
@@ -356,15 +361,17 @@ export default function ProfilePage() {
                 name={profile.fullName}
                 src={profile.profilePicture}
                 size="xl"
-                className="ring-4 ring-white dark:ring-dark-800 w-24 h-24 text-2xl"
+                className="ring-4 w-24 h-24 text-2xl"
+                style={{ '--tw-ring-color': 'var(--color-bg)' } as React.CSSProperties}
               />
               {isOwnProfile && (
                 <>
                   <button
                     onClick={() => avatarInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 bg-linkedin-600 hover:bg-linkedin-700 text-white p-1.5 rounded-full shadow transition"
+                    className="absolute bottom-0 right-0 p-1.5 rounded-full shadow transition"
+                    style={{ background: 'var(--color-accent)' }}
                   >
-                    {uploadAvatarMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                    {uploadAvatarMut.isPending ? <Loader2 className="w-3 h-3 text-white animate-spin" /> : <Camera className="w-3 h-3 text-white" />}
                   </button>
                   <input
                     ref={avatarInputRef} type="file" accept="image/*" className="hidden"
@@ -376,24 +383,29 @@ export default function ProfilePage() {
 
             {/* Info */}
             <div className="flex-1 min-w-0 sm:mt-0 mt-2">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{profile.fullName}</h1>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{profile.fullName}</h1>
               {profile.headline && (
-                <p className="text-gray-600 dark:text-gray-400 mt-0.5">{profile.headline}</p>
+                <p className="mt-0.5" style={{ color: 'var(--color-muted)' }}>{profile.headline}</p>
               )}
               {profile.location && (
-                <p className="text-sm text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-1">
+                <p className="text-sm flex items-center gap-1 mt-1" style={{ color: 'var(--color-dim)' }}>
                   <MapPin className="w-3.5 h-3.5" /> {profile.location}
                 </p>
               )}
               {profile.website && (
                 <a href={profile.website} target="_blank" rel="noopener noreferrer"
-                  className="text-sm text-linkedin-600 hover:underline flex items-center gap-1 mt-0.5">
+                  className="text-sm flex items-center gap-1 mt-0.5 hover:underline"
+                  style={{ color: 'var(--color-accent)' }}>
                   <Globe className="w-3.5 h-3.5" /> {profile.website.replace(/^https?:\/\//, '')}
                 </a>
               )}
               <div className="flex gap-4 mt-2 text-sm">
-                <span className="text-gray-600 dark:text-gray-400"><strong className="text-gray-900 dark:text-gray-100">{profile.connections}</strong> connections</span>
-                <span className="text-gray-600 dark:text-gray-400"><strong className="text-gray-900 dark:text-gray-100">{profile.followers}</strong> followers</span>
+                <span style={{ color: 'var(--color-muted)' }}>
+                  <strong style={{ color: 'var(--color-text)' }}>{profile.connections}</strong> connections
+                </span>
+                <span style={{ color: 'var(--color-muted)' }}>
+                  <strong style={{ color: 'var(--color-text)' }}>{profile.followers}</strong> followers
+                </span>
               </div>
             </div>
 
@@ -410,16 +422,16 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* About */}
       {(profile.about || isOwnProfile) && (
         <Section title="About" onAdd={isOwnProfile ? () => setModal({ type: 'basic' }) : undefined}>
           {profile.about ? (
-            <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{profile.about}</p>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }}>{profile.about}</p>
           ) : (
-            <p className="text-gray-400 dark:text-gray-500 text-sm italic">Add a summary about yourself</p>
+            <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>Add a summary about yourself</p>
           )}
         </Section>
       )}
@@ -427,31 +439,32 @@ export default function ProfilePage() {
       {/* Experience */}
       <Section title="Experience" onAdd={isOwnProfile ? () => setModal({ type: 'exp' }) : undefined}>
         {profile.experience.length === 0 ? (
-          <p className="text-gray-400 dark:text-gray-500 text-sm italic">No experience added</p>
+          <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>No experience added</p>
         ) : (
           <div className="space-y-5">
             {profile.experience.map((exp, i) => (
               <div key={exp._id ?? i} className="flex gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-700 flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-gray-400" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-bg)' }}>
+                  <Building2 className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">{exp.title}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{exp.company}{exp.location && ` · ${exp.location}`}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
+                      <p className="font-semibold" style={{ color: 'var(--color-text)' }}>{exp.title}</p>
+                      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{exp.company}{exp.location && ` · ${exp.location}`}</p>
+                      <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
                         <Calendar className="w-3 h-3" />
                         {fmtDate(exp.startDate)} – {exp.current ? 'Present' : fmtDate(exp.endDate)}
                       </p>
                     </div>
                     {isOwnProfile && (
-                      <button onClick={() => setModal({ type: 'exp', item: exp })} className="p-1 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-full ml-2">
-                        <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                      <button onClick={() => setModal({ type: 'exp', item: exp })} className="p-1 rounded-lg hover:bg-white/5 ml-2">
+                        <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--color-dim)' }} />
                       </button>
                     )}
                   </div>
-                  {exp.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{exp.description}</p>}
+                  {exp.description && <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{exp.description}</p>}
                 </div>
               </div>
             ))}
@@ -462,27 +475,28 @@ export default function ProfilePage() {
       {/* Education */}
       <Section title="Education" onAdd={isOwnProfile ? () => setModal({ type: 'edu' }) : undefined}>
         {profile.education.length === 0 ? (
-          <p className="text-gray-400 dark:text-gray-500 text-sm italic">No education added</p>
+          <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>No education added</p>
         ) : (
           <div className="space-y-5">
             {profile.education.map((edu, i) => (
               <div key={edu._id ?? i} className="flex gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-700 flex items-center justify-center shrink-0">
-                  <GraduationCap className="w-5 h-5 text-gray-400" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-bg)' }}>
+                  <GraduationCap className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-gray-100">{edu.school}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{edu.degree}{edu.fieldOfStudy && `, ${edu.fieldOfStudy}`}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5">
+                      <p className="font-semibold" style={{ color: 'var(--color-text)' }}>{edu.school}</p>
+                      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{edu.degree}{edu.fieldOfStudy && `, ${edu.fieldOfStudy}`}</p>
+                      <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
                         <Calendar className="w-3 h-3" />
                         {fmtDate(edu.startDate)} – {edu.current ? 'Present' : fmtDate(edu.endDate)}
                       </p>
                     </div>
                     {isOwnProfile && (
-                      <button onClick={() => setModal({ type: 'edu', item: edu })} className="p-1 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-full ml-2">
-                        <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                      <button onClick={() => setModal({ type: 'edu', item: edu })} className="p-1 rounded-lg hover:bg-white/5 ml-2">
+                        <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--color-dim)' }} />
                       </button>
                     )}
                   </div>
@@ -496,14 +510,15 @@ export default function ProfilePage() {
       {/* Skills */}
       <Section title="Skills" onAdd={isOwnProfile ? () => setModal({ type: 'skills' }) : undefined}>
         {profile.skills.length === 0 ? (
-          <p className="text-gray-400 dark:text-gray-500 text-sm italic">No skills added</p>
+          <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>No skills added</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {profile.skills.map(skill => (
               <div key={skill} className="flex items-center gap-1">
                 <Badge variant="default">{skill}</Badge>
                 {isOwnProfile && (
-                  <button onClick={() => removeSkillMut.mutate(skill)} className="text-gray-300 hover:text-red-400 transition">
+                  <button onClick={() => removeSkillMut.mutate(skill)} className="hover:text-red-400 transition"
+                    style={{ color: 'var(--color-dim)' }}>
                     <X className="w-3 h-3" />
                   </button>
                 )}
@@ -519,7 +534,8 @@ export default function ProfilePage() {
               onChange={e => setNewSkill(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newSkill.trim()) { addSkillMut.mutate(newSkill.trim()); } }}
               placeholder="Type a skill and press Enter"
-              className="flex-1 px-3 py-2 rounded-xl border border-gray-200 dark:border-dark-600 bg-gray-50 dark:bg-dark-700 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-linkedin-500"
+              className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }}
               autoFocus
             />
             <Button size="sm" onClick={() => { if (newSkill.trim()) addSkillMut.mutate(newSkill.trim()); }} isLoading={addSkillMut.isPending}>Add</Button>

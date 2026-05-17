@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept 2 — Neo-Brutalism</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap');
+
+  :root {
+    --bg: #f5f0e8;
+    --black: #0a0a0a;
+    --white: #ffffff;
+    --yellow: #FFE500;
+    --lime: #C8FF00;
+    --pink: #FF3366;
+    --blue: #0066FF;
+    --orange: #FF6B00;
+    --border: 2.5px solid #0a0a0a;
+    --shadow: 4px 4px 0px #0a0a0a;
+    --shadow-lg: 6px 6px 0px #0a0a0a;
+    --shadow-hover: 2px 2px 0px #0a0a0a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--black);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Background texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(#0a0a0a15 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Navbar ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--yellow);
+    border-bottom: var(--border);
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -1px;
+    text-transform: uppercase;
+    color: var(--black);
+  }
+  .logo span { color: var(--pink); }
+
+  .nav-links {
+    display: flex;
+    gap: 0;
+    list-style: none;
+    height: 60px;
+  }
+  .nav-links li {
+    height: 100%;
+  }
+  .nav-links a {
+    text-decoration: none;
+    color: var(--black);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 18px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-left: var(--border);
+    transition: all 0.1s;
+  }
+  .nav-links a:hover, .nav-links a.active {
+    background: var(--black);
+    color: var(--yellow);
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 60px;
+  }
+  .nav-btn {
+    border: none;
+    border-left: var(--border);
+    background: transparent;
+    height: 100%;
+    padding: 0 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.1s;
+    letter-spacing: 0.5px;
+  }
+  .nav-btn:hover { background: var(--black); color: var(--yellow); }
+  .nav-btn.primary { background: var(--pink); color: white; }
+  .nav-btn.primary:hover { background: var(--black); }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr 260px;
+    gap: 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0;
+    position: relative;
+    z-index: 1;
+    border-left: var(--border);
+    border-right: var(--border);
+    border-bottom: var(--border);
+  }
+
+  /* ── Left Sidebar ── */
+  .sidebar {
+    border-right: var(--border);
+    padding: 0;
+  }
+
+  .profile-block {
+    border-bottom: var(--border);
+    padding: 24px;
+    background: var(--white);
+  }
+  .profile-avatar-wrap {
+    width: 72px; height: 72px;
+    border-radius: 0;
+    border: var(--border);
+    box-shadow: var(--shadow);
+    background: var(--lime);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    font-weight: 800;
+    font-family: 'Syne', sans-serif;
+    margin-bottom: 14px;
+  }
+  .profile-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .profile-badge {
+    display: inline-block;
+    background: var(--pink);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: var(--border);
+    box-shadow: var(--shadow);
+  }
+  .stat-cell {
+    padding: 10px;
+    text-align: center;
+    border-right: 1px solid var(--black);
+    border-bottom: 1px solid var(--black);
+  }
+  .stat-cell:nth-child(even) { border-right: none; }
+  .stat-cell:nth-child(3), .stat-cell:nth-child(4) { border-bottom: none; }
+  .stat-n {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+  }
+  .stat-l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
+
+  .nav-section { padding: 0; }
+  .nav-section-title {
+    padding: 10px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    background: #f0ebe0;
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    transition: all 0.1s;
+    position: relative;
+  }
+  .menu-item:hover {
+    background: var(--black);
+    color: var(--yellow);
+  }
+  .menu-item.active {
+    background: var(--yellow);
+    border-bottom-color: rgba(0,0,0,0.12);
+  }
+  .menu-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--black);
+  }
+  .m-badge {
+    margin-left: auto;
+    background: var(--pink);
+    color: white;
+    font-size: 10px;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+  }
+
+  /* ── Feed ── */
+  .feed {
+    background: var(--bg);
+  }
+
+  .create-post {
+    background: var(--white);
+    border-bottom: var(--border);
+    padding: 20px;
+  }
+  .create-header {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.3px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .create-header::after {
+    content: '✦';
+    color: var(--pink);
+    font-family: sans-serif;
+    font-size: 12px;
+    font-weight: normal;
+  }
+  .create-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: var(--border);
+    box-shadow: inset 2px 2px 0 rgba(0,0,0,0.05);
+    padding: 12px 14px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    color: var(--black);
+    resize: none;
+    outline: none;
+    min-height: 80px;
+    transition: all 0.1s;
+  }
+  .create-textarea:focus { box-shadow: var(--shadow), inset 2px 2px 0 rgba(0,0,0,0.05); }
+  .create-actions {
+    display: flex;
+    gap: 0;
+    margin-top: 12px;
+  }
+  .btn-brutal {
+    border: var(--border);
+    padding: 10px 18px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.1s;
+    background: var(--white);
+    margin-right: -2.5px;
+  }
+  .btn-brutal:hover { background: var(--black); color: var(--white); transform: translate(-2px,-2px); box-shadow: var(--shadow); }
+  .btn-brutal.primary { background: var(--yellow); margin-left: auto; }
+  .btn-brutal.primary:hover { background: var(--black); color: var(--yellow); }
+
+  /* Post cards */
+  .post-card {
+    background: var(--white);
+    border-bottom: var(--border);
+    padding: 20px;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .post-card:hover {
+    background: #fffef5;
+  }
+
+  .post-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .post-avatar {
+    width: 48px; height: 48px;
+    border: var(--border);
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    font-family: 'Syne', sans-serif;
+    flex-shrink: 0;
+  }
+  .av-y { background: var(--yellow); }
+  .av-l { background: var(--lime); }
+  .av-p { background: var(--pink); color: white; }
+
+  .post-meta-wrap { flex: 1; }
+  .post-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.3px;
+    margin-bottom: 2px;
+  }
+  .post-role { font-size: 11px; color: #666; font-weight: 600; }
+  .post-time { font-size: 11px; color: #888; }
+
+  .post-more-btn {
+    width: 32px; height: 32px;
+    border: var(--border);
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.1s;
+  }
+  .post-more-btn:hover { background: var(--black); color: var(--yellow); }
+
+  .post-content {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #222;
+    margin-bottom: 16px;
+  }
+  .post-content strong { font-weight: 800; }
+  .post-tag {
+    display: inline-block;
+    background: var(--yellow);
+    border: 1.5px solid var(--black);
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-right: 4px;
+    letter-spacing: 0.3px;
+  }
+
+  .post-image {
+    width: 100%;
+    height: 160px;
+    border: var(--border);
+    box-shadow: var(--shadow);
+    background: var(--lime);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+
+  .post-footer {
+    display: flex;
+    gap: 0;
+    border-top: var(--border);
+    padding-top: 12px;
+  }
+  .react-btn {
+    border: var(--border);
+    padding: 6px 14px;
+    background: transparent;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    margin-right: -2.5px;
+    transition: all 0.1s;
+  }
+  .react-btn:hover { background: var(--black); color: var(--yellow); }
+  .react-btn.active { background: var(--pink); color: white; }
+  .react-btn.ml { margin-left: auto; }
+
+  /* ── Right Sidebar ── */
+  .right-sidebar {
+    border-left: var(--border);
+  }
+
+  .widget {
+    border-bottom: var(--border);
+    padding: 0;
+  }
+  .widget-header {
+    padding: 12px 16px;
+    background: var(--black);
+    color: var(--yellow);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .widget-body { padding: 12px 16px; }
+
+  .sug-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+  }
+  .sug-row:last-child { border-bottom: none; }
+  .sug-av {
+    width: 36px; height: 36px;
+    border: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+    font-family: 'Syne', sans-serif;
+    flex-shrink: 0;
+  }
+  .sug-info { flex: 1; }
+  .sug-n { font-size: 13px; font-weight: 700; }
+  .sug-r { font-size: 11px; color: #666; }
+  .add-btn {
+    border: var(--border);
+    background: var(--lime);
+    padding: 4px 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.1s;
+    white-space: nowrap;
+  }
+  .add-btn:hover { background: var(--black); color: var(--lime); box-shadow: var(--shadow-hover); }
+
+  .trend-row {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .trend-row:last-child { border-bottom: none; }
+  .trend-row:hover { padding-left: 8px; }
+  .trend-cat { font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; font-weight: 600; }
+  .trend-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .trend-n { font-size: 11px; color: #666; font-weight: 600; }
+
+  .job-row {
+    padding: 10px;
+    border: var(--border);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .job-row:hover { box-shadow: var(--shadow); transform: translate(-2px,-2px); }
+  .job-row::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .job-row.j1::before { background: var(--blue); }
+  .job-row.j2::before { background: var(--orange); }
+  .job-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; padding-left: 8px; }
+  .job-company { font-size: 11px; color: #666; padding-left: 8px; }
+  .job-match {
+    display: inline-block;
+    margin-top: 6px; margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--lime);
+    border: 1.5px solid var(--black);
+  }
+
+  /* Corner decoration */
+  .corner-deco {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--pink);
+    border: var(--border);
+    box-shadow: var(--shadow-lg);
+    padding: 10px 28px;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: white;
+    z-index: 999;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">NEX<span>US</span></div>
+  <ul class="nav-links">
+    <li><a href="#" class="active">Home</a></li>
+    <li><a href="#">Network</a></li>
+    <li><a href="#">Jobs</a></li>
+    <li><a href="#">Messages</a></li>
+  </ul>
+  <div class="nav-right">
+    <button class="nav-btn">🔔 3</button>
+    <button class="nav-btn primary">DK ▾</button>
+  </div>
+</nav>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="profile-block">
+      <div class="profile-avatar-wrap">DK</div>
+      <div class="profile-name">Dewansh Khandelwal</div>
+      <div class="profile-badge">Security Engineer</div>
+      <div class="stats-grid">
+        <div class="stat-cell"><div class="stat-n">248</div><div class="stat-l">Conn.</div></div>
+        <div class="stat-cell"><div class="stat-n">1.2K</div><div class="stat-l">Views</div></div>
+        <div class="stat-cell"><div class="stat-n">34</div><div class="stat-l">Posts</div></div>
+        <div class="stat-cell"><div class="stat-n">97%</div><div class="stat-l">Profile</div></div>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Navigation</div>
+      <div class="menu-item active">⊞ Feed</div>
+      <div class="menu-item">👤 Profile</div>
+      <div class="menu-item">🌐 Network <span class="m-badge">3</span></div>
+      <div class="menu-item">💬 Messages <span class="m-badge">7</span></div>
+      <div class="menu-item">💼 Jobs</div>
+      <div class="menu-item">🔔 Notifs <span class="m-badge">12</span></div>
+      <div class="menu-item">⚙ Settings</div>
+    </div>
+  </aside>
+
+  <!-- Feed -->
+  <main class="feed">
+    <div class="create-post">
+      <div class="create-header">Create Post</div>
+      <textarea class="create-textarea" placeholder="Share something with your network..."></textarea>
+      <div class="create-actions">
+        <button class="btn-brutal">📎 File</button>
+        <button class="btn-brutal">📷 Photo</button>
+        <button class="btn-brutal primary">POST IT →</button>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-header">
+        <div class="post-avatar av-y">AK</div>
+        <div class="post-meta-wrap">
+          <div class="post-name">Arjun Kumar</div>
+          <div class="post-role">Full Stack Dev @ Google DeepMind</div>
+          <div class="post-time">2 hours ago</div>
+        </div>
+        <div class="post-more-btn">⋯</div>
+      </div>
+      <div class="post-content">
+        🚀 Just shipped a zero-day patch affecting 2.4M users. <strong>CVE-2025-8834</strong> buffer overflow in the auth layer — only triggered with specific UTF-8 edge cases. <br><br>
+        Key takeaway: always fuzz input validators with Unicode, not just ASCII. The fix was 3 lines. The hunt was 3 weeks.<br><br>
+        <span class="post-tag">#security</span> <span class="post-tag">#CVE</span> <span class="post-tag">#bufferoverflow</span>
+      </div>
+      <div class="post-footer">
+        <button class="react-btn active">❤ 284</button>
+        <button class="react-btn">💬 47</button>
+        <button class="react-btn">↗ Share</button>
+        <button class="react-btn ml">🔖</button>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-header">
+        <div class="post-avatar av-l">SM</div>
+        <div class="post-meta-wrap">
+          <div class="post-name">Sneha Mishra</div>
+          <div class="post-role">ML Engineer @ OpenAI • PhD IIT Bombay</div>
+          <div class="post-time">5 hours ago</div>
+        </div>
+        <div class="post-more-btn">⋯</div>
+      </div>
+      <div class="post-content">
+        New paper dropped: <strong>"Adversarial Robustness in LLM Fine-tuning"</strong><br>
+        Standard RLHF pipelines are 3.7× more vulnerable than previously thought. Check it out 👇
+      </div>
+      <div class="post-image">📊 Research Paper Preview</div>
+      <div class="post-footer">
+        <button class="react-btn">❤ 1.1K</button>
+        <button class="react-btn">💬 89</button>
+        <button class="react-btn">↗ Share</button>
+        <button class="react-btn ml">🔖</button>
+      </div>
+    </div>
+
+    <div class="post-card">
+      <div class="post-header">
+        <div class="post-avatar av-p">RV</div>
+        <div class="post-meta-wrap">
+          <div class="post-name">Rahul Verma</div>
+          <div class="post-role">Penetration Tester @ Crowdstrike</div>
+          <div class="post-time">Yesterday</div>
+        </div>
+        <div class="post-more-btn">⋯</div>
+      </div>
+      <div class="post-content">
+        Hot take: 90% of "AI-powered security tools" are just <strong>regex with a GPT wrapper</strong>. Real security requires human intuition + adversarial thinking LLMs can't replicate. Change my mind 🧵<br><br>
+        <span class="post-tag">#cybersecurity</span> <span class="post-tag">#AI</span> <span class="post-tag">#pentest</span>
+      </div>
+      <div class="post-footer">
+        <button class="react-btn">❤ 532</button>
+        <button class="react-btn">💬 203</button>
+        <button class="react-btn">↗ Share</button>
+        <button class="react-btn ml">🔖</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right Sidebar -->
+  <aside class="right-sidebar">
+    <div class="widget">
+      <div class="widget-header">↳ People You May Know</div>
+      <div class="widget-body">
+        <div class="sug-row">
+          <div class="sug-av" style="background:#e0f2fe">PK</div>
+          <div class="sug-info">
+            <div class="sug-n">Priya K.</div>
+            <div class="sug-r">Security @ Microsoft</div>
+          </div>
+          <button class="add-btn">+ Add</button>
+        </div>
+        <div class="sug-row">
+          <div class="sug-av" style="background:#dcfce7">NK</div>
+          <div class="sug-info">
+            <div class="sug-n">Nikhil K.</div>
+            <div class="sug-r">DevSecOps @ Amazon</div>
+          </div>
+          <button class="add-btn">+ Add</button>
+        </div>
+        <div class="sug-row">
+          <div class="sug-av" style="background:#fef9c3">AS</div>
+          <div class="sug-info">
+            <div class="sug-n">Ananya S.</div>
+            <div class="sug-r">Cloud @ Infosys</div>
+          </div>
+          <button class="add-btn">+ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="widget">
+      <div class="widget-header">↳ Trending Now</div>
+      <div class="widget-body">
+        <div class="trend-row">
+          <div class="trend-cat">Trending in Security</div>
+          <div class="trend-name">#ZeroTrust</div>
+          <div class="trend-n">4,821 posts</div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-cat">Trending in AI</div>
+          <div class="trend-name">#LLMSecurity</div>
+          <div class="trend-n">2,309 posts</div>
+        </div>
+        <div class="trend-row">
+          <div class="trend-cat">Trending in Dev</div>
+          <div class="trend-name">#RustSecurity</div>
+          <div class="trend-n">1,044 posts</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="widget">
+      <div class="widget-header">↳ Jobs For You</div>
+      <div class="widget-body">
+        <div class="job-row j1">
+          <div class="job-title">Security Engineer</div>
+          <div class="job-company">Google • Bangalore • ₹45L–₹80L</div>
+          <div class="job-match">95% match</div>
+        </div>
+        <div class="job-row j2">
+          <div class="job-title">ML Security Researcher</div>
+          <div class="job-company">OpenAI • Remote • $180k–$250k</div>
+          <div class="job-match">88% match</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="corner-deco">✦ Concept 2 — Neo-Brutalism</div>
+
+</body>
+</html>

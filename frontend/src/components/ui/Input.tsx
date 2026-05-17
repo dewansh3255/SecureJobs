@@ -15,28 +15,31 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     ref
   ) => {
     const baseStyles = `
-      w-full px-4 py-2.5 text-sm rounded-lg border
+      w-full px-4 py-3 text-sm rounded-xl border
       transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0
       disabled:opacity-50 disabled:cursor-not-allowed
-      bg-white dark:bg-dark-800
-      text-gray-900 dark:text-gray-100
-      placeholder:text-gray-400 dark:placeholder:text-gray-500
+      font-medium
     `;
 
     const stateStyles = error
-      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-      : 'border-gray-300 dark:border-dark-600 focus:border-linkedin-500 focus:ring-linkedin-500/20';
+      ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/20 bg-red-900/10'
+      : [
+          'border-dark-600/60 focus:border-accent-500/70 focus:ring-accent-500/15',
+          'bg-dark-800/60 text-dark-100 placeholder:text-dark-400',
+          'dark:bg-dark-800/60 dark:text-dark-100 dark:placeholder:text-dark-400',
+          'hover:border-dark-500',
+        ].join(' ');
 
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--color-muted)' }}>
             {label}
           </label>
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-dim)' }}>
               {leftIcon}
             </div>
           )}
@@ -53,16 +56,18 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {rightIcon && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-dim)' }}>
               {rightIcon}
             </div>
           )}
         </div>
         {error && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="mt-1.5 text-xs font-medium text-red-400 flex items-center gap-1">
+            <span>⚠</span> {error}
+          </p>
         )}
         {helperText && !error && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+          <p className="mt-1.5 text-xs" style={{ color: 'var(--color-muted)' }}>{helperText}</p>
         )}
       </div>
     );

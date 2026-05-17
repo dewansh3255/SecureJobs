@@ -25,42 +25,48 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles = `
-      inline-flex items-center justify-center font-medium rounded-lg
-      transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2
-      disabled:opacity-50 disabled:cursor-not-allowed
+      inline-flex items-center justify-center font-semibold
+      transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0
+      disabled:opacity-40 disabled:cursor-not-allowed
+      select-none
     `;
 
     const variants = {
       primary: `
-        bg-linkedin-500 text-white hover:bg-linkedin-600
-        focus:ring-linkedin-500
-        dark:bg-linkedin-600 dark:hover:bg-linkedin-700
+        text-white font-semibold
+        bg-gradient-to-br from-accent-500 to-accent2-500
+        hover:from-accent-400 hover:to-accent2-400
+        focus:ring-accent-500/50
+        shadow-[0_4px_20px_rgba(124,111,224,0.35)]
+        hover:shadow-[0_4px_28px_rgba(124,111,224,0.55)]
       `,
       secondary: `
-        bg-gray-100 text-gray-900 hover:bg-gray-200
-        focus:ring-gray-500
-        dark:bg-dark-700 dark:text-gray-100 dark:hover:bg-dark-600
+        bg-dark-750 text-dark-100 border border-dark-600
+        hover:border-accent-500/40 hover:bg-dark-700 hover:text-white
+        focus:ring-accent-500/30
+        dark:bg-dark-750 dark:text-dark-100
       `,
       ghost: `
-        text-gray-600 hover:bg-gray-100 hover:text-gray-900
-        focus:ring-gray-500
-        dark:text-gray-300 dark:hover:bg-dark-800 dark:hover:text-white
+        text-dark-300 hover:bg-dark-750/60 hover:text-white
+        focus:ring-dark-600
+        dark:text-dark-300 dark:hover:bg-dark-750/60 dark:hover:text-white
       `,
       danger: `
-        bg-red-600 text-white hover:bg-red-700
-        focus:ring-red-500
+        bg-red-600 text-white hover:bg-red-500
+        focus:ring-red-500/50
+        shadow-[0_4px_16px_rgba(220,38,38,0.3)]
       `,
       outline: `
-        border-2 border-linkedin-500 text-linkedin-500 hover:bg-linkedin-50
-        focus:ring-linkedin-500
-        dark:border-linkedin-400 dark:text-linkedin-400 dark:hover:bg-linkedin-900/20
+        border border-accent-500/50 text-accent-400
+        hover:bg-accent-500/10 hover:border-accent-500
+        focus:ring-accent-500/30
       `,
     };
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-6 py-3 text-base',
+      sm: 'px-3 py-1.5 text-xs rounded-lg',
+      md: 'px-5 py-2.5 text-sm rounded-xl',
+      lg: 'px-7 py-3 text-base rounded-xl',
     };
 
     return (

@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept 3 — Aurora (Liquid Gradient Mesh)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap');
+
+  :root {
+    --bg: #f8f7ff;
+    --surface: rgba(255,255,255,0.7);
+    --surface-solid: #ffffff;
+    --border: rgba(0,0,0,0.06);
+    --text: #0f0c29;
+    --text-2: #44406a;
+    --text-3: #8b87aa;
+    --accent: #7c3aed;
+    --accent-2: #db2777;
+    --accent-3: #0ea5e9;
+    --green: #10b981;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Liquid gradient mesh background ── */
+  .mesh-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .mesh-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: meshFloat 12s ease-in-out infinite;
+  }
+  .m1 { width: 600px; height: 600px; background: radial-gradient(circle, #c4b5fd, #a78bfa); top: -200px; left: -100px; animation-duration: 15s; }
+  .m2 { width: 500px; height: 500px; background: radial-gradient(circle, #fbcfe8, #f9a8d4); top: 200px; right: -150px; animation-delay: -5s; animation-duration: 12s; }
+  .m3 { width: 400px; height: 400px; background: radial-gradient(circle, #bae6fd, #7dd3fc); bottom: 100px; left: 30%; animation-delay: -8s; animation-duration: 18s; }
+  .m4 { width: 300px; height: 300px; background: radial-gradient(circle, #bbf7d0, #86efac); bottom: -100px; right: 10%; animation-delay: -3s; animation-duration: 10s; }
+
+  @keyframes meshFloat {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -30px) scale(1.05); }
+    66% { transform: translate(-20px, 20px) scale(0.97); }
+  }
+
+  /* ── Navbar ── */
+  nav {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 48px);
+    max-width: 1200px;
+    z-index: 100;
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(24px) saturate(200%);
+    background: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(124,58,237,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .nav-pills {
+    display: flex;
+    gap: 2px;
+    background: rgba(0,0,0,0.04);
+    padding: 3px;
+    border-radius: 10px;
+  }
+  .pill {
+    text-decoration: none;
+    color: var(--text-3);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 5px 14px;
+    border-radius: 8px;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+  .pill:hover { color: var(--text); background: rgba(255,255,255,0.6); }
+  .pill.active {
+    color: var(--accent);
+    background: white;
+    box-shadow: 0 1px 6px rgba(124,58,237,0.15);
+  }
+
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.6);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .icon-btn:hover { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  .notif-pulse {
+    position: absolute;
+    top: 7px; right: 7px;
+    width: 6px; height: 6px;
+    background: var(--accent-2);
+    border-radius: 50%;
+    border: 1.5px solid white;
+  }
+  .av-nav {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(124,58,237,0.3);
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr 280px;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 24px 40px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.04);
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .card:hover {
+    box-shadow: 0 8px 40px rgba(124,58,237,0.1), 0 2px 8px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+  }
+
+  /* ── Left Sidebar ── */
+  .sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+  .profile-card {
+    padding: 0;
+    overflow: hidden;
+  }
+  .profile-cover {
+    height: 70px;
+    background: linear-gradient(135deg, #ddd6fe, #fbcfe8, #bae6fd);
+    position: relative;
+  }
+  .profile-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(255,255,255,0.3));
+  }
+  .profile-body { padding: 0 20px 20px; }
+  .profile-av {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: 3px solid white;
+    margin-top: -30px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    box-shadow: 0 4px 16px rgba(124,58,237,0.3);
+    position: relative;
+    z-index: 1;
+  }
+  .online-ring {
+    position: absolute;
+    bottom: 2px; right: 2px;
+    width: 12px; height: 12px;
+    background: var(--green);
+    border-radius: 50%;
+    border: 2px solid white;
+  }
+  .p-name {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 2px;
+    letter-spacing: -0.3px;
+  }
+  .p-role { font-size: 12px; color: var(--text-3); margin-bottom: 14px; }
+
+  .profile-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .pstat {
+    background: rgba(124,58,237,0.05);
+    border: 1px solid rgba(124,58,237,0.1);
+    border-radius: 12px;
+    padding: 10px;
+    text-align: center;
+  }
+  .pstat-n {
+    font-size: 18px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .pstat-l { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+
+  /* Profile complete ring */
+  .completion-bar {
+    margin-top: 14px;
+  }
+  .comp-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
+  .bar-track {
+    height: 4px;
+    background: rgba(0,0,0,0.06);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 97%;
+    animation: barGrow 1s ease-out;
+  }
+  @keyframes barGrow { from { width: 0; } }
+
+  .nav-card { padding: 8px; }
+  .nav-li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    transition: all 0.2s;
+    margin-bottom: 2px;
+  }
+  .nav-li:hover { background: rgba(124,58,237,0.06); color: var(--text); }
+  .nav-li.on {
+    background: rgba(124,58,237,0.08);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-li .nbadge {
+    margin-left: auto;
+    background: var(--accent);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 100px;
+  }
+
+  /* ── Feed ── */
+  .feed { display: flex; flex-direction: column; gap: 14px; }
+
+  .create-card { padding: 18px; }
+  .create-row { display: flex; gap: 12px; align-items: flex-start; }
+  .create-av {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: white;
+  }
+  .create-box {
+    flex: 1;
+    background: rgba(0,0,0,0.03);
+    border: 1.5px solid rgba(0,0,0,0.07);
+    border-radius: 14px;
+    padding: 10px 14px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    color: var(--text);
+    outline: none;
+    resize: none;
+    height: 42px;
+    transition: all 0.25s;
+  }
+  .create-box:focus {
+    height: 80px;
+    border-color: rgba(124,58,237,0.3);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(124,58,237,0.06);
+  }
+  .create-box::placeholder { color: var(--text-3); }
+  .create-tools {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+    align-items: center;
+  }
+  .tool-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tool-btn:hover { background: rgba(0,0,0,0.04); color: var(--text-2); }
+  .post-btn {
+    margin-left: auto;
+    padding: 8px 22px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: none;
+    color: white;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+  }
+  .post-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,58,237,0.4); }
+
+  /* Story / Activity bar */
+  .story-bar {
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.9);
+    border-radius: 20px;
+    backdrop-filter: blur(20px);
+    padding: 14px 16px;
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+    scrollbar-width: none;
+  }
+  .story-bar::-webkit-scrollbar { display: none; }
+  .story-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .story-av-wrap {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    padding: 2px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  .story-av-wrap.seen { background: linear-gradient(135deg, #d1d5db, #9ca3af); }
+  .story-av {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    border: 2px solid white;
+  }
+  .story-name { font-size: 11px; color: var(--text-3); font-weight: 500; text-align: center; }
+
+  /* Post card */
+  .post {
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .post::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(124,58,237,0.1), transparent);
+  }
+
+  .post-hd { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .pav {
+    width: 42px; height: 42px;
+    border-radius: 14px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: white;
+  }
+  .pav1 { background: linear-gradient(135deg, #818cf8, #6366f1); }
+  .pav2 { background: linear-gradient(135deg, #34d399, #059669); }
+  .pav3 { background: linear-gradient(135deg, #f87171, #db2777); }
+
+  .pmeta { flex: 1; }
+  .pname { font-size: 14px; font-weight: 700; letter-spacing: -0.2px; }
+  .prole { font-size: 11.5px; color: var(--text-3); }
+  .ptime { font-size: 11px; color: var(--text-3); opacity: 0.7; }
+
+  .pmore {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-3);
+    font-size: 18px;
+  }
+  .pmore:hover { background: rgba(0,0,0,0.05); color: var(--text); }
+
+  .pcontent {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-2);
+    margin-bottom: 14px;
+  }
+  .pcontent strong { color: var(--text); font-weight: 700; }
+  .ptag {
+    display: inline-block;
+    background: rgba(124,58,237,0.08);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+
+  .pimg {
+    width: 100%; height: 180px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ddd6fe, #fbcfe8);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  .preact {
+    display: flex;
+    gap: 2px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .rbtn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .rbtn:hover { background: rgba(0,0,0,0.04); color: var(--text-2); }
+  .rbtn.hot { color: var(--accent-2); background: rgba(219,39,119,0.06); }
+  .rbtn.ml { margin-left: auto; }
+
+  /* ── Right Sidebar ── */
+  .right-sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+  .wcard { padding: 18px; }
+  .wtitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-2);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .wtitle-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+
+  .sug-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 2px;
+  }
+  .sug-item:hover { background: rgba(124,58,237,0.05); }
+  .sav {
+    width: 36px; height: 36px;
+    border-radius: 11px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: white;
+  }
+  .si { flex: 1; min-width: 0; }
+  .sn { font-size: 13px; font-weight: 600; }
+  .sr { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cbtn {
+    background: rgba(124,58,237,0.08);
+    border: 1px solid rgba(124,58,237,0.2);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .cbtn:hover { background: var(--accent); color: white; }
+
+  .trend-it {
+    padding: 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 2px;
+  }
+  .trend-it:hover { background: rgba(124,58,237,0.05); }
+  .tc { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; }
+  .tn {
+    font-size: 14px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .tv { font-size: 11px; color: var(--text-3); }
+
+  .job-it {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 6px;
+    background: rgba(124,58,237,0.03);
+  }
+  .job-it:hover { border-color: rgba(124,58,237,0.2); background: rgba(124,58,237,0.06); }
+  .jt { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .jc { font-size: 11px; color: var(--text-3); }
+  .jm {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white;
+  }
+
+  /* Label */
+  .concept-label {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    padding: 8px 24px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 0.3px;
+    z-index: 999;
+    box-shadow: 0 8px 32px rgba(124,58,237,0.4);
+    backdrop-filter: blur(10px);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.2); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="mesh-bg">
+  <div class="mesh-blob m1"></div>
+  <div class="mesh-blob m2"></div>
+  <div class="mesh-blob m3"></div>
+  <div class="mesh-blob m4"></div>
+</div>
+
+<nav>
+  <div class="logo">Nexus</div>
+  <div class="nav-pills">
+    <a href="#" class="pill active">Home</a>
+    <a href="#" class="pill">Network</a>
+    <a href="#" class="pill">Jobs</a>
+    <a href="#" class="pill">Messages</a>
+  </div>
+  <div class="nav-right">
+    <div class="icon-btn">🔔<span class="notif-pulse"></span></div>
+    <div class="av-nav">DK</div>
+  </div>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="card profile-card">
+      <div class="profile-cover"></div>
+      <div class="profile-body">
+        <div class="profile-av">DK<span class="online-ring"></span></div>
+        <div class="p-name">Dewansh Khandelwal</div>
+        <div class="p-role">Security Engineer · FCS-26</div>
+        <div class="profile-stats">
+          <div class="pstat"><div class="pstat-n">248</div><div class="pstat-l">Connections</div></div>
+          <div class="pstat"><div class="pstat-n">1.2K</div><div class="pstat-l">Views</div></div>
+          <div class="pstat"><div class="pstat-n">34</div><div class="pstat-l">Posts</div></div>
+          <div class="pstat"><div class="pstat-n">97%</div><div class="pstat-l">Profile</div></div>
+        </div>
+        <div class="completion-bar">
+          <div class="comp-label"><span>Profile strength</span><span>97%</span></div>
+          <div class="bar-track"><div class="bar-fill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card nav-card">
+      <div class="nav-li on">⊞ Feed</div>
+      <div class="nav-li">👤 Profile</div>
+      <div class="nav-li">🌐 Network <span class="nbadge">3</span></div>
+      <div class="nav-li">💬 Messages <span class="nbadge">7</span></div>
+      <div class="nav-li">💼 Jobs</div>
+      <div class="nav-li">🔔 Notifications <span class="nbadge">12</span></div>
+      <div class="nav-li">⚙ Settings</div>
+    </div>
+  </aside>
+
+  <main class="feed">
+    <!-- Story bar -->
+    <div class="story-bar">
+      <div class="story-item">
+        <div class="story-av-wrap">
+          <div class="story-av" style="background:linear-gradient(135deg,#818cf8,#6366f1);color:white;font-size:14px;font-weight:700">AK</div>
+        </div>
+        <div class="story-name">Arjun</div>
+      </div>
+      <div class="story-item">
+        <div class="story-av-wrap">
+          <div class="story-av" style="background:linear-gradient(135deg,#34d399,#059669);color:white;font-size:14px;font-weight:700">SM</div>
+        </div>
+        <div class="story-name">Sneha</div>
+      </div>
+      <div class="story-item">
+        <div class="story-av-wrap seen">
+          <div class="story-av" style="background:linear-gradient(135deg,#f87171,#dc2626);color:white;font-size:14px;font-weight:700">RV</div>
+        </div>
+        <div class="story-name">Rahul</div>
+      </div>
+      <div class="story-item">
+        <div class="story-av-wrap">
+          <div class="story-av" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:white;font-size:14px;font-weight:700">PK</div>
+        </div>
+        <div class="story-name">Priya</div>
+      </div>
+      <div class="story-item">
+        <div class="story-av-wrap seen">
+          <div class="story-av" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:white;font-size:14px;font-weight:700">NK</div>
+        </div>
+        <div class="story-name">Nikhil</div>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="create-row">
+        <div class="create-av">DK</div>
+        <textarea class="create-box" placeholder="What's on your mind, Dewansh?"></textarea>
+      </div>
+      <div class="create-tools">
+        <button class="tool-btn">📎 Attach</button>
+        <button class="tool-btn">📷 Photo</button>
+        <button class="tool-btn">📝 Article</button>
+        <button class="post-btn">Post</button>
+      </div>
+    </div>
+
+    <div class="card post">
+      <div class="post-hd">
+        <div class="pav pav1">AK</div>
+        <div class="pmeta">
+          <div class="pname">Arjun Kumar</div>
+          <div class="prole">Full Stack Dev @ Google DeepMind</div>
+          <div class="ptime">2 hours ago</div>
+        </div>
+        <div class="pmore">⋯</div>
+      </div>
+      <div class="pcontent">
+        🚀 Just shipped a zero-day patch affecting 2.4M users. The <strong>CVE-2025-8834</strong> buffer overflow in our auth layer was subtle — only triggered with specific UTF-8 encoding edge cases.<br><br>
+        Key takeaway: <strong>always fuzz your input validators</strong> with Unicode edge cases. The fix was 3 lines. The hunt was 3 weeks.<br><br>
+        <span class="ptag">#security</span><span class="ptag">#bufferoverflow</span><span class="ptag">#CVE</span>
+      </div>
+      <div class="preact">
+        <button class="rbtn hot">❤️ 284</button>
+        <button class="rbtn">💬 47</button>
+        <button class="rbtn">↗ Share</button>
+        <button class="rbtn ml">🔖</button>
+      </div>
+    </div>
+
+    <div class="card post">
+      <div class="post-hd">
+        <div class="pav pav2">SM</div>
+        <div class="pmeta">
+          <div class="pname">Sneha Mishra</div>
+          <div class="prole">ML Engineer @ OpenAI · PhD IIT Bombay</div>
+          <div class="ptime">5 hours ago</div>
+        </div>
+        <div class="pmore">⋯</div>
+      </div>
+      <div class="pcontent">
+        Excited to share our new paper: <strong>"Adversarial Robustness in LLM Fine-tuning"</strong> — standard RLHF pipelines are 3.7× more vulnerable than previously thought. Check the link 👇
+      </div>
+      <div class="pimg">📊 Research Paper Preview</div>
+      <div class="preact">
+        <button class="rbtn">❤️ 1.1k</button>
+        <button class="rbtn">💬 89</button>
+        <button class="rbtn">↗ Share</button>
+        <button class="rbtn ml">🔖</button>
+      </div>
+    </div>
+
+    <div class="card post">
+      <div class="post-hd">
+        <div class="pav pav3">RV</div>
+        <div class="pmeta">
+          <div class="pname">Rahul Verma</div>
+          <div class="prole">Penetration Tester @ Crowdstrike</div>
+          <div class="ptime">Yesterday</div>
+        </div>
+        <div class="pmore">⋯</div>
+      </div>
+      <div class="pcontent">
+        Hot take: 90% of "AI-powered security tools" are just <strong>regex with a GPT wrapper</strong>. Real security requires human intuition + adversarial thinking LLMs fundamentally cannot replicate. Change my mind 🧵<br><br>
+        <span class="ptag">#cybersecurity</span><span class="ptag">#AI</span><span class="ptag">#pentest</span>
+      </div>
+      <div class="preact">
+        <button class="rbtn">❤️ 532</button>
+        <button class="rbtn">💬 203</button>
+        <button class="rbtn">↗ Share</button>
+        <button class="rbtn ml">🔖</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right-sidebar">
+    <div class="card wcard">
+      <div class="wtitle"><span class="wtitle-dot"></span> People You May Know</div>
+      <div class="sug-item">
+        <div class="sav" style="background:linear-gradient(135deg,#818cf8,#c084fc)">PK</div>
+        <div class="si"><div class="sn">Priya K.</div><div class="sr">Security @ Microsoft</div></div>
+        <button class="cbtn">+ Connect</button>
+      </div>
+      <div class="sug-item">
+        <div class="sav" style="background:linear-gradient(135deg,#34d399,#06b6d4)">NK</div>
+        <div class="si"><div class="sn">Nikhil K.</div><div class="sr">DevSecOps @ Amazon</div></div>
+        <button class="cbtn">+ Connect</button>
+      </div>
+      <div class="sug-item">
+        <div class="sav" style="background:linear-gradient(135deg,#fb923c,#f43f5e)">AS</div>
+        <div class="si"><div class="sn">Ananya S.</div><div class="sr">Cloud @ Infosys</div></div>
+        <button class="cbtn">+ Connect</button>
+      </div>
+    </div>
+
+    <div class="card wcard">
+      <div class="wtitle"><span class="wtitle-dot"></span> Trending</div>
+      <div class="trend-it"><div class="tc">Security</div><div class="tn">#ZeroTrust</div><div class="tv">4,821 posts</div></div>
+      <div class="trend-it"><div class="tc">AI</div><div class="tn">#LLMSecurity</div><div class="tv">2,309 posts</div></div>
+      <div class="trend-it"><div class="tc">Dev</div><div class="tn">#RustSecurity</div><div class="tv">1,044 posts</div></div>
+    </div>
+
+    <div class="card wcard">
+      <div class="wtitle"><span class="wtitle-dot"></span> Jobs For You</div>
+      <div class="job-it">
+        <div class="jt">Security Engineer</div>
+        <div class="jc">Google · Bangalore · ₹45L–₹80L</div>
+        <div class="jm">95% match</div>
+      </div>
+      <div class="job-it">
+        <div class="jt">ML Security Researcher</div>
+        <div class="jc">OpenAI · Remote · $180k–$250k</div>
+        <div class="jm">88% match</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="concept-label">✦ Concept 3 — Aurora (Liquid Gradient Mesh)</div>
+
+</body>
+</html>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept 4 — Monochrome Editorial</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --black: #080808;
+    --off-black: #111111;
+    --dark: #1a1a1a;
+    --mid: #2a2a2a;
+    --border: #2a2a2a;
+    --dim: #555;
+    --muted: #888;
+    --text: #e8e8e6;
+    --white: #f5f5f0;
+    --gold: #c8a951;
+    --gold-dim: rgba(200,169,81,0.15);
+    --red: #e53e3e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Fine grain texture */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* ── Top bar / Issue header ── */
+  .top-bar {
+    background: var(--gold);
+    padding: 6px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .issue-info { font-size: 11px; font-weight: 600; color: var(--black); letter-spacing: 0.5px; text-transform: uppercase; }
+  .top-links { display: flex; gap: 16px; }
+  .top-links a { font-size: 11px; color: var(--black); text-decoration: none; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  /* ── Masthead ── */
+  .masthead {
+    background: var(--off-black);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+  }
+  .masthead-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+  }
+  .wordmark {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    color: var(--white);
+    line-height: 1;
+  }
+  .wordmark .dot { color: var(--gold); }
+
+  .nav-rule {
+    display: flex;
+    gap: 0;
+    list-style: none;
+  }
+  .nav-rule a {
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 8px 16px;
+    border-left: 1px solid var(--border);
+    transition: color 0.2s;
+  }
+  .nav-rule a:hover { color: var(--white); }
+  .nav-rule a.on { color: var(--gold); }
+
+  .mast-right { display: flex; gap: 12px; align-items: center; }
+  .mast-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mast-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .mast-btn.primary { background: var(--gold); color: var(--black); border-color: var(--gold); }
+  .mast-btn.primary:hover { background: #b8952e; }
+
+  /* ── Section nav (sub-nav) ── */
+  .section-nav {
+    background: var(--off-black);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 99;
+  }
+  .section-nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+  }
+  .section-tabs { display: flex; gap: 0; }
+  .stab {
+    padding: 0 18px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    cursor: pointer;
+    border-right: 1px solid var(--border);
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+  }
+  .stab:hover { color: var(--text); }
+  .stab.on { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .section-right { display: flex; align-items: center; gap: 12px; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--red);
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    background: var(--red);
+    border-radius: 50%;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+  /* ── Main Layout ── */
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 32px;
+  }
+
+  /* ── Column system ── */
+  .left-col { display: flex; flex-direction: column; gap: 0; }
+
+  /* Horizontal rule with label */
+  .section-rule {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .rule-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--gold);
+    white-space: nowrap;
+  }
+  .rule-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* Profile strip */
+  .profile-strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--off-black);
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .pstrip-av {
+    width: 56px; height: 56px;
+    border-radius: 2px;
+    background: linear-gradient(135deg, var(--gold), #8b6914);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--black);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .pstrip-online {
+    position: absolute;
+    bottom: -3px; right: -3px;
+    width: 10px; height: 10px;
+    background: #22c55e;
+    border: 2px solid var(--off-black);
+    border-radius: 50%;
+  }
+  .pstrip-info { flex: 1; }
+  .pstrip-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 2px;
+  }
+  .pstrip-role { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .pstrip-stats { display: flex; gap: 24px; }
+  .pss { text-align: right; }
+  .pss-n { font-size: 22px; font-weight: 700; font-family: 'Playfair Display', serif; color: var(--white); }
+  .pss-l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+
+  /* Create compose box */
+  .compose-box {
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+    background: var(--off-black);
+  }
+  .compose-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .compose-header::before { content: '✎'; color: var(--gold); }
+  .compose-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 16px 20px;
+    color: var(--text);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    min-height: 80px;
+    font-style: italic;
+  }
+  .compose-input::placeholder { color: var(--dim); }
+  .compose-footer {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    gap: 8px;
+  }
+  .cf-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .cf-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .cf-publish {
+    margin-left: auto;
+    background: var(--gold);
+    border: none;
+    color: var(--black);
+    padding: 8px 22px;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .cf-publish:hover { background: #b8952e; }
+
+  /* Article-style post */
+  .article {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .article:last-child { border-bottom: none; }
+
+  .article-kicker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .kicker-category {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--gold);
+  }
+  .kicker-line { flex: 0; width: 24px; height: 1px; background: var(--gold); }
+  .kicker-time { font-size: 11px; color: var(--muted); }
+
+  .article-byline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .byline-av {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+  .byline-av.a1 { background: #1e1a35; color: #818cf8; }
+  .byline-av.a2 { background: #0d2918; color: #34d399; }
+  .byline-av.a3 { background: #2d0a0a; color: #f87171; }
+
+  .byline-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .byline-role { font-size: 11px; color: var(--muted); }
+
+  .article-headline {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.5px;
+    color: var(--white);
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .article-headline:hover { color: var(--gold); }
+
+  .article-deck {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #999;
+  }
+  .article-deck strong { color: var(--text); font-weight: 600; }
+
+  .article-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .atag {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .atag:hover { border-color: var(--gold); color: var(--gold); }
+
+  .article-meta {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .ameta-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: -1px;
+  }
+  .ameta-btn:hover { background: var(--gold-dim); color: var(--gold); border-color: var(--gold); z-index: 1; position: relative; }
+  .ameta-btn.reacted { background: #2d0a0a; color: var(--red); border-color: #440f0f; }
+  .ameta-btn.ml { margin-left: auto; }
+
+  /* ── Right Column ── */
+  .right-col { display: flex; flex-direction: column; gap: 0; }
+
+  /* Masthead-style widget */
+  .widget {
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+    background: var(--off-black);
+    position: relative;
+  }
+  .widget-masthead {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .wm-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--white);
+  }
+  .wm-rule { font-size: 10px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .widget-body { padding: 14px 16px; }
+
+  /* Persons list */
+  .person-row {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .person-row:last-child { border-bottom: none; }
+  .pr-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--border);
+    width: 28px;
+    flex-shrink: 0;
+    line-height: 1;
+    padding-top: 2px;
+  }
+  .pr-av {
+    width: 36px; height: 36px;
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .pr-info { flex: 1; }
+  .pr-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .pr-role { font-size: 11px; color: var(--muted); }
+  .pr-connect {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gold);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: 'Instrument Sans', sans-serif;
+    padding: 0;
+    transition: color 0.2s;
+    white-space: nowrap;
+  }
+  .pr-connect:hover { color: var(--white); }
+
+  /* Ticker-style trending */
+  .trend-list { display: flex; flex-direction: column; gap: 0; }
+  .trend-entry {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+    align-items: flex-start;
+  }
+  .trend-entry:last-child { border-bottom: none; }
+  .trend-entry:hover { padding-left: 8px; }
+  .te-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    width: 20px;
+  }
+  .te-content { flex: 1; }
+  .te-cat { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 2px; }
+  .te-tag { font-size: 14px; font-weight: 700; color: var(--white); }
+  .te-count { font-size: 11px; color: var(--muted); }
+
+  /* Classified ads style jobs */
+  .job-listing {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .job-listing:last-child { border-bottom: none; }
+  .job-listing:hover { padding-left: 8px; }
+  .jl-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .jl-co {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .jl-match {
+    font-size: 10px;
+    color: var(--gold);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .jl-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--white);
+    margin-bottom: 2px;
+  }
+  .jl-details { font-size: 11px; color: var(--muted); }
+
+  /* Concept label */
+  .concept-label {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    z-index: 999;
+    text-align: center;
+    padding: 10px;
+    background: var(--gold);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--black);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--off-black); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <div class="issue-info">Vol. IV, Issue 89 · Thursday, April 24, 2025</div>
+  <div class="top-links">
+    <a href="#">Subscribe</a>
+    <a href="#">Archive</a>
+    <a href="#">About</a>
+  </div>
+</div>
+
+<!-- Masthead -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="wordmark">NEXUS<span class="dot">.</span></div>
+    <ul class="nav-rule">
+      <li><a href="#" class="on">Feed</a></li>
+      <li><a href="#">Network</a></li>
+      <li><a href="#">Jobs</a></li>
+      <li><a href="#">Messages</a></li>
+    </ul>
+    <div class="mast-right">
+      <button class="mast-btn">🔔</button>
+      <button class="mast-btn primary">DK ▾</button>
+    </div>
+  </div>
+</header>
+
+<!-- Section Nav -->
+<div class="section-nav">
+  <div class="section-nav-inner">
+    <div class="section-tabs">
+      <div class="stab on">Top Stories</div>
+      <div class="stab">Security</div>
+      <div class="stab">AI & ML</div>
+      <div class="stab">Open Source</div>
+      <div class="stab">Career</div>
+    </div>
+    <div class="section-right">
+      <div class="live-badge"><span class="live-dot"></span> Live updates</div>
+    </div>
+  </div>
+</div>
+
+<!-- Page -->
+<div class="page">
+  <!-- Left Column -->
+  <div class="left-col">
+    <!-- Profile strip -->
+    <div class="profile-strip">
+      <div class="pstrip-av">DK<span class="pstrip-online"></span></div>
+      <div class="pstrip-info">
+        <div class="pstrip-name">Dewansh Khandelwal</div>
+        <div class="pstrip-role">Security Engineer · FCS-26</div>
+      </div>
+      <div class="pstrip-stats">
+        <div class="pss"><div class="pss-n">248</div><div class="pss-l">Connections</div></div>
+        <div class="pss"><div class="pss-n">34</div><div class="pss-l">Posts</div></div>
+        <div class="pss"><div class="pss-n">97%</div><div class="pss-l">Profile</div></div>
+      </div>
+    </div>
+
+    <!-- Compose -->
+    <div class="compose-box">
+      <div class="compose-header">Write a Post</div>
+      <textarea class="compose-input" placeholder="Share your perspective with the community..."></textarea>
+      <div class="compose-footer">
+        <button class="cf-btn">📎 Attach</button>
+        <button class="cf-btn">📷 Photo</button>
+        <button class="cf-publish">Publish →</button>
+      </div>
+    </div>
+
+    <!-- Section rule -->
+    <div class="section-rule">
+      <span class="rule-label">Latest Posts</span>
+      <span class="rule-line"></span>
+    </div>
+
+    <!-- Articles -->
+    <div class="article">
+      <div class="article-kicker">
+        <span class="kicker-category">Security</span>
+        <span class="kicker-line"></span>
+        <span class="kicker-time">2 hours ago</span>
+      </div>
+      <div class="article-byline">
+        <div class="byline-av a1">AK</div>
+        <div>
+          <div class="byline-name">Arjun Kumar</div>
+          <div class="byline-role">Full Stack Developer @ Google DeepMind</div>
+        </div>
+      </div>
+      <div class="article-headline">
+        Zero-Day Patch Shipped: CVE-2025-8834 Buffer Overflow Affecting 2.4 Million Users
+      </div>
+      <div class="article-deck">
+        The vulnerability was subtle — only triggered by specific UTF-8 encoding edge cases in the auth layer. The fix was <strong>3 lines of code</strong>. The hunt was 3 weeks of deep fuzzing and manual analysis.
+      </div>
+      <div class="article-tags">
+        <span class="atag">Security</span>
+        <span class="atag">Buffer Overflow</span>
+        <span class="atag">CVE-2025</span>
+        <span class="atag">Unicode</span>
+      </div>
+      <div class="article-meta">
+        <button class="ameta-btn reacted">♥ 284</button>
+        <button class="ameta-btn">✦ 47 Comments</button>
+        <button class="ameta-btn">↗ Share</button>
+        <button class="ameta-btn ml">◈ Save</button>
+      </div>
+    </div>
+
+    <div class="article">
+      <div class="article-kicker">
+        <span class="kicker-category">AI / ML</span>
+        <span class="kicker-line"></span>
+        <span class="kicker-time">5 hours ago</span>
+      </div>
+      <div class="article-byline">
+        <div class="byline-av a2">SM</div>
+        <div>
+          <div class="byline-name">Sneha Mishra</div>
+          <div class="byline-role">ML Engineer @ OpenAI · PhD IIT Bombay</div>
+        </div>
+      </div>
+      <div class="article-headline">
+        New Research: Standard RLHF Pipelines Are 3.7× More Vulnerable Than Previously Thought
+      </div>
+      <div class="article-deck">
+        Our paper on <strong>adversarial robustness in LLM fine-tuning</strong> reveals a systematic weakness in how current alignment methods handle adversarial prompts during the reward modeling phase.
+      </div>
+      <div class="article-tags">
+        <span class="atag">LLM</span>
+        <span class="atag">RLHF</span>
+        <span class="atag">Adversarial</span>
+        <span class="atag">Research</span>
+      </div>
+      <div class="article-meta">
+        <button class="ameta-btn">♥ 1.1K</button>
+        <button class="ameta-btn">✦ 89 Comments</button>
+        <button class="ameta-btn">↗ Share</button>
+        <button class="ameta-btn ml">◈ Save</button>
+      </div>
+    </div>
+
+    <div class="article">
+      <div class="article-kicker">
+        <span class="kicker-category">Opinion</span>
+        <span class="kicker-line"></span>
+        <span class="kicker-time">Yesterday</span>
+      </div>
+      <div class="article-byline">
+        <div class="byline-av a3">RV</div>
+        <div>
+          <div class="byline-name">Rahul Verma</div>
+          <div class="byline-role">Penetration Tester @ Crowdstrike</div>
+        </div>
+      </div>
+      <div class="article-headline" style="font-style:italic">
+        "90% of AI-Powered Security Tools Are Just Regex With a GPT Wrapper"
+      </div>
+      <div class="article-deck">
+        Real penetration testing requires adversarial thinking, creativity, and context that <strong>current LLMs fundamentally cannot replicate</strong>. The industry needs to stop pretending otherwise.
+      </div>
+      <div class="article-tags">
+        <span class="atag">Cybersecurity</span>
+        <span class="atag">Opinion</span>
+        <span class="atag">Pentest</span>
+      </div>
+      <div class="article-meta">
+        <button class="ameta-btn">♥ 532</button>
+        <button class="ameta-btn">✦ 203 Comments</button>
+        <button class="ameta-btn">↗ Share</button>
+        <button class="ameta-btn ml">◈ Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="right-col">
+    <!-- People to know -->
+    <div class="widget">
+      <div class="widget-masthead">
+        <div class="wm-title">People of Note</div>
+        <div class="wm-rule">Recommended</div>
+      </div>
+      <div class="widget-body">
+        <div class="person-row">
+          <div class="pr-num">01</div>
+          <div class="pr-av" style="background:#1a1633;color:#818cf8">PK</div>
+          <div class="pr-info">
+            <div class="pr-name">Priya K.</div>
+            <div class="pr-role">Security Researcher @ Microsoft</div>
+          </div>
+          <button class="pr-connect">Follow +</button>
+        </div>
+        <div class="person-row">
+          <div class="pr-num">02</div>
+          <div class="pr-av" style="background:#0a2010;color:#34d399">NK</div>
+          <div class="pr-info">
+            <div class="pr-name">Nikhil K.</div>
+            <div class="pr-role">DevSecOps @ Amazon</div>
+          </div>
+          <button class="pr-connect">Follow +</button>
+        </div>
+        <div class="person-row">
+          <div class="pr-num">03</div>
+          <div class="pr-av" style="background:#1e0f05;color:#fb923c">AS</div>
+          <div class="pr-info">
+            <div class="pr-name">Ananya S.</div>
+            <div class="pr-role">Cloud Architect @ Infosys</div>
+          </div>
+          <button class="pr-connect">Follow +</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trending -->
+    <div class="widget">
+      <div class="widget-masthead">
+        <div class="wm-title">Trending Topics</div>
+        <div class="wm-rule">Live</div>
+      </div>
+      <div class="widget-body">
+        <div class="trend-list">
+          <div class="trend-entry">
+            <div class="te-num">I</div>
+            <div class="te-content">
+              <div class="te-cat">Security · Trending</div>
+              <div class="te-tag">#ZeroTrust</div>
+              <div class="te-count">4,821 mentions today</div>
+            </div>
+          </div>
+          <div class="trend-entry">
+            <div class="te-num">II</div>
+            <div class="te-content">
+              <div class="te-cat">AI · Trending</div>
+              <div class="te-tag">#LLMSecurity</div>
+              <div class="te-count">2,309 mentions today</div>
+            </div>
+          </div>
+          <div class="trend-entry">
+            <div class="te-num">III</div>
+            <div class="te-content">
+              <div class="te-cat">Dev · Trending</div>
+              <div class="te-tag">#RustSecurity</div>
+              <div class="te-count">1,044 mentions today</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Jobs -->
+    <div class="widget">
+      <div class="widget-masthead">
+        <div class="wm-title">Positions</div>
+        <div class="wm-rule">Curated for you</div>
+      </div>
+      <div class="widget-body">
+        <div class="job-listing">
+          <div class="jl-meta"><span class="jl-co">Google</span><span class="jl-match">95% match</span></div>
+          <div class="jl-title">Security Engineer</div>
+          <div class="jl-details">Bangalore, India · ₹45L – ₹80L per annum</div>
+        </div>
+        <div class="job-listing">
+          <div class="jl-meta"><span class="jl-co">OpenAI</span><span class="jl-match">88% match</span></div>
+          <div class="jl-title">ML Security Researcher</div>
+          <div class="jl-details">Remote · $180,000 – $250,000 USD</div>
+        </div>
+        <div class="job-listing">
+          <div class="jl-meta"><span class="jl-co">Crowdstrike</span><span class="jl-match">81% match</span></div>
+          <div class="jl-title">Threat Intelligence Analyst</div>
+          <div class="jl-details">Hyderabad, India · ₹35L – ₹55L per annum</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="concept-label">✦ Concept 4 — Monochrome Editorial (Dark Magazine)</div>
+
+</body>
+</html>

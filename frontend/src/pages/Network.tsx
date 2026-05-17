@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { UserPlus, Users, Check, X, Search, MapPin, Briefcase } from 'lucide-react';
+import { UserPlus, Users, Check, X, Search, MapPin, Briefcase, Sparkles } from 'lucide-react';
 import { apiService } from '@services/api';
-import { Card } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Avatar } from '@components/ui/Avatar';
 import { Badge } from '@components/ui/Badge';
@@ -35,53 +34,52 @@ function PersonCard({ person, onConnect, connecting }: {
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25 }}
+      className="sp-card-lift rounded-2xl p-4 flex flex-col items-center text-center gap-3 h-full"
     >
-      <Card variant="hover" className="p-4 flex flex-col items-center text-center gap-3 h-full">
-        <Avatar
-          name={`${person.firstName} ${person.lastName}`}
-          src={person.profilePicture}
-          size="xl"
-        />
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
-            {person.firstName} {person.lastName}
+      <Avatar
+        name={`${person.firstName} ${person.lastName}`}
+        src={person.profilePicture}
+        size="xl"
+      />
+      <div className="flex-1 min-w-0 w-full">
+        <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
+          {person.firstName} {person.lastName}
+        </p>
+        {person.headline && (
+          <p className="text-xs line-clamp-2 mt-0.5" style={{ color: 'var(--color-muted)' }}>{person.headline}</p>
+        )}
+        {person.location && (
+          <p className="text-xs flex items-center justify-center gap-1 mt-1" style={{ color: 'var(--color-dim)' }}>
+            <MapPin className="w-3 h-3" /> {person.location}
           </p>
-          {person.headline && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{person.headline}</p>
-          )}
-          {person.location && (
-            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center gap-1 mt-1">
-              <MapPin className="w-3 h-3" /> {person.location}
-            </p>
-          )}
-          {person.industry && (
-            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center justify-center gap-1 mt-0.5">
-              <Briefcase className="w-3 h-3" /> {person.industry}
-            </p>
-          )}
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
-          leftIcon={<UserPlus className="w-3.5 h-3.5" />}
-          onClick={() => onConnect(person._id)}
-          isLoading={connecting}
-          className="w-full"
-        >
-          Connect
-        </Button>
-      </Card>
+        )}
+        {person.industry && (
+          <p className="text-xs flex items-center justify-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
+            <Briefcase className="w-3 h-3" /> {person.industry}
+          </p>
+        )}
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        leftIcon={<UserPlus className="w-3.5 h-3.5" />}
+        onClick={() => onConnect(person._id)}
+        isLoading={connecting}
+        className="w-full"
+      >
+        Connect
+      </Button>
     </motion.div>
   );
 }
 
 function SkeletonCard() {
   return (
-    <div className="bg-white dark:bg-dark-800 rounded-xl shadow-soft p-4 flex flex-col items-center gap-3 animate-pulse">
-      <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-dark-700" />
-      <div className="w-24 h-3 bg-gray-200 dark:bg-dark-700 rounded" />
-      <div className="w-32 h-2 bg-gray-200 dark:bg-dark-700 rounded" />
-      <div className="w-full h-8 bg-gray-200 dark:bg-dark-700 rounded-lg" />
+    <div className="sp-card rounded-2xl p-4 flex flex-col items-center gap-3 animate-pulse">
+      <div className="w-16 h-16 rounded-xl bg-white/5" />
+      <div className="w-24 h-3 bg-white/5 rounded" />
+      <div className="w-32 h-2 bg-white/5 rounded" />
+      <div className="w-full h-8 bg-white/5 rounded-xl" />
     </div>
   );
 }
@@ -155,24 +153,29 @@ export default function NetworkPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-10">
       {/* Search */}
-      <Card className="p-4">
+      <div className="sp-card rounded-2xl p-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-dim)' }} />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search for people by name, headline, or industry…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-dark-600 bg-gray-50 dark:bg-dark-700 text-sm text-gray-800 dark:text-gray-100 outline-none focus:ring-2 focus:ring-linkedin-500"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition"
+            style={{
+              background: 'var(--color-bg)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'var(--color-text)',
+            }}
           />
         </div>
-      </Card>
+      </div>
 
       {/* Search Results */}
       {searchQuery.trim().length >= 2 && (
         <section>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-            <Search className="w-5 h-5 text-linkedin-600" />
+          <h2 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+            <Search className="w-4 h-4 text-linkedin-500" />
             Search Results
             {searchData && <Badge>{searchResults.length}</Badge>}
           </h2>
@@ -181,9 +184,9 @@ export default function NetworkPage() {
               {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
             </div>
           ) : searchResults.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-gray-500 dark:text-gray-400">No users found for "{searchQuery}"</p>
-            </Card>
+            <div className="sp-card rounded-2xl p-8 text-center" style={{ color: 'var(--color-muted)' }}>
+              No users found for "{searchQuery}"
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {searchResults.map(person => (
@@ -202,19 +205,19 @@ export default function NetworkPage() {
       {/* Pending Invitations */}
       {(pendingLoading || pending.length > 0) && (
         <section>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-linkedin-600" />
+          <h2 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+            <Users className="w-4 h-4 text-linkedin-500" />
             Pending Invitations
             {!pendingLoading && <Badge variant="error">{pending.length}</Badge>}
           </h2>
           {pendingLoading ? (
             <div className="space-y-3">
               {[1, 2].map(i => (
-                <div key={i} className="bg-white dark:bg-dark-800 rounded-xl shadow-soft p-4 flex items-center gap-3 animate-pulse">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-dark-700" />
+                <div key={i} className="sp-card rounded-2xl p-4 flex items-center gap-3 animate-pulse">
+                  <div className="w-12 h-12 rounded-xl bg-white/5 shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-1/3" />
-                    <div className="h-3 bg-gray-200 dark:bg-dark-700 rounded w-1/2" />
+                    <div className="h-4 bg-white/5 rounded w-1/3" />
+                    <div className="h-3 bg-white/5 rounded w-1/2" />
                   </div>
                 </div>
               ))}
@@ -223,7 +226,7 @@ export default function NetworkPage() {
             <div className="space-y-3">
               {pending.map((conn) => (
                 <motion.div key={conn._id} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }}>
-                  <Card className="p-4 flex items-center justify-between gap-3">
+                  <div className="sp-card rounded-2xl p-4 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar
                         name={`${conn.requester.firstName} ${conn.requester.lastName}`}
@@ -231,11 +234,11 @@ export default function NetworkPage() {
                         size="md"
                       />
                       <div className="min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 dark:text-gray-100 truncate">
+                        <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
                           {conn.requester.firstName} {conn.requester.lastName}
                         </p>
                         {conn.requester.headline && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{conn.requester.headline}</p>
+                          <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{conn.requester.headline}</p>
                         )}
                       </div>
                     </div>
@@ -257,7 +260,7 @@ export default function NetworkPage() {
                         <X className="w-4 h-4" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
                 </motion.div>
               ))}
             </div>
@@ -267,8 +270,8 @@ export default function NetworkPage() {
 
       {/* Suggestions */}
       <section>
-        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-          <UserPlus className="w-5 h-5 text-linkedin-600" />
+        <h2 className="text-base font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
+          <Sparkles className="w-4 h-4 text-linkedin-500" />
           People You May Know
         </h2>
         {suggestionsLoading ? (
@@ -276,10 +279,10 @@ export default function NetworkPage() {
             {[1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
           </div>
         ) : suggestions.length === 0 ? (
-          <Card className="p-10 text-center">
-            <UserPlus className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-gray-400">No suggestions yet. Fill in your profile to get better suggestions.</p>
-          </Card>
+          <div className="sp-card rounded-2xl p-10 text-center">
+            <UserPlus className="w-10 h-10 mx-auto mb-3 opacity-20" style={{ color: 'var(--color-accent)' }} />
+            <p style={{ color: 'var(--color-muted)' }}>No suggestions yet. Fill in your profile to get better suggestions.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {suggestions.map(person => (

@@ -8,14 +8,13 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = 'default', children, ...props }, ref) => {
     const baseStyles = `
-      bg-white dark:bg-dark-800 rounded-xl
-      dark:border dark:border-dark-700
+      sp-card rounded-2xl
     `;
 
     const variants = {
-      default: 'shadow-soft',
-      hover: 'shadow-soft transition-all duration-200 hover:shadow-soft-lg hover:-translate-y-0.5',
-      interactive: 'shadow-soft transition-all duration-200 hover:shadow-soft-lg hover:-translate-y-0.5 cursor-pointer',
+      default: '',
+      hover: 'sp-card-lift',
+      interactive: 'sp-card-lift cursor-pointer',
     };
 
     return (
@@ -36,7 +35,8 @@ export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-4 py-3 border-b border-gray-100 dark:border-dark-700', className)}
+      className={cn('px-5 py-4 border-b', className)}
+      style={{ borderColor: 'rgba(255,255,255,0.07)' }}
       {...props}
     >
       {children}
@@ -50,7 +50,7 @@ export const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElem
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-4 py-3', className)}
+      className={cn('px-5 py-4', className)}
       {...props}
     >
       {children}
@@ -64,7 +64,8 @@ export const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivEleme
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('px-4 py-3 border-t border-gray-100 dark:border-dark-700', className)}
+      className={cn('px-5 py-4 border-t', className)}
+      style={{ borderColor: 'rgba(255,255,255,0.07)' }}
       {...props}
     >
       {children}

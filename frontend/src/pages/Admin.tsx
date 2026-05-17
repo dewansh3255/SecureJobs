@@ -18,7 +18,6 @@ import {
 } from 'lucide-react';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
-import { Card, CardContent, CardHeader } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Badge } from '@components/ui/Badge';
 import { Input } from '@components/ui/Input';
@@ -45,20 +44,18 @@ function StatCard({ icon: Icon, label, value, sub, color }: {
   sub?: string; color: string;
 }) {
   return (
-    <Card className="border-0 shadow-soft">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
-            {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-          </div>
-          <div className={`w-12 h-12 ${color} rounded-2xl flex items-center justify-center`}>
-            <Icon className="w-6 h-6 text-white" />
-          </div>
+    <div className="sp-card rounded-2xl p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>{label}</p>
+          <p className="text-3xl font-bold mt-1" style={{ color: 'var(--color-text)' }}>{value}</p>
+          {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--color-dim)' }}>{sub}</p>}
         </div>
-      </CardContent>
-    </Card>
+        <div className={`w-12 h-12 ${color} rounded-2xl flex items-center justify-center`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -76,8 +73,8 @@ function Pagination({ page, pages, onPrev, onNext }: {
   page: number; pages: number; onPrev: () => void; onNext: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-dark-700 mt-4">
-      <span className="text-sm text-gray-500 dark:text-gray-400">Page {page} of {pages}</span>
+    <div className="flex items-center justify-between pt-4 mt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      <span className="text-sm" style={{ color: 'var(--color-muted)' }}>Page {page} of {pages}</span>
       <div className="flex gap-2">
         <Button size="sm" variant="ghost" onClick={onPrev} disabled={page <= 1}
           leftIcon={<ChevronLeft className="w-4 h-4" />}>Prev</Button>
@@ -192,22 +189,23 @@ export default function AdminPage() {
           <Shield className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Admin Panel</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Platform management & security</p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>Admin Panel</h1>
+          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Platform management & security</p>
         </div>
       </div>
 
       {/* Tab nav */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-dark-700 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 p-1 rounded-xl w-fit" style={{ background: 'var(--color-bg)' }}>
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === id
-                ? 'bg-white dark:bg-dark-600 text-gray-900 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition"
+            style={{
+              background: tab === id ? 'var(--color-card)' : 'transparent',
+              color: tab === id ? 'var(--color-text)' : 'var(--color-muted)',
+              border: tab === id ? '1px solid rgba(255,255,255,0.07)' : '1px solid transparent',
+            }}
           >
             <Icon className="w-4 h-4" />
             {label}
@@ -222,7 +220,7 @@ export default function AdminPage() {
             {statsQ.isLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-28 bg-gray-100 dark:bg-dark-700 rounded-2xl animate-pulse" />
+                  <div key={i} className="h-28 rounded-2xl animate-pulse bg-white/5" />
                 ))}
               </div>
             ) : stats ? (
@@ -237,7 +235,7 @@ export default function AdminPage() {
                 </div>
               </>
             ) : (
-              <Card><CardContent className="py-12 text-center text-gray-400">Failed to load stats</CardContent></Card>
+              <div className="sp-card rounded-2xl py-12 text-center" style={{ color: 'var(--color-dim)' }}>Failed to load stats</div>
             )}
           </motion.div>
         )}
@@ -245,8 +243,8 @@ export default function AdminPage() {
         {/* ── Users Tab ─────────────────────────────────── */}
         {tab === 'users' && (
           <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Card className="border-0 shadow-soft">
-              <CardHeader className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex items-center gap-3">
+            <div className="sp-card rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex-1">
                   <Input
                     placeholder="Search users by name or email…"
@@ -258,281 +256,243 @@ export default function AdminPage() {
                 </div>
                 <Button size="sm" variant="ghost" onClick={() => qc.invalidateQueries({ queryKey: ['admin-users'] })}
                   leftIcon={<RefreshCw className="w-4 h-4" />}>Refresh</Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-750">
-                        <th className="text-left px-6 py-3 font-medium text-gray-600 dark:text-gray-400">User</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Role</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">2FA</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Status</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Joined</th>
-                        <th className="text-right px-6 py-3 font-medium text-gray-600 dark:text-gray-400">Actions</th>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                      <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>User</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Role</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>2FA</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Joined</th>
+                      <th className="text-right px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usersQ.data?.data?.data?.users?.map((u: any) => (
+                      <tr key={u._id} className="transition hover:bg-white/5"
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td className="px-6 py-3">
+                          <p className="font-medium" style={{ color: 'var(--color-text)' }}>{u.firstName} {u.lastName}</p>
+                          <p className="text-xs" style={{ color: 'var(--color-dim)' }}>{u.email}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={u.role === 'admin' ? 'primary' : u.role === 'moderator' ? 'warning' : 'default'}>
+                            {u.role}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          {u.twoFactorEnabled
+                            ? <CheckCircle2 className="w-4 h-4 text-green-400" />
+                            : <XCircle className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={u.active !== false ? 'success' : 'error'}>
+                            {u.active !== false ? 'Active' : 'Banned'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-dim)' }}>
+                          {new Date(u.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button size="sm" variant={u.active !== false ? 'ghost' : 'secondary'}
+                              onClick={() => banMut.mutate({ id: u._id, banned: u.active !== false })}
+                              isLoading={banMut.isPending}
+                              leftIcon={<Ban className="w-3.5 h-3.5" />} className="text-xs">
+                              {u.active !== false ? 'Ban' : 'Unban'}
+                            </Button>
+                            <Button size="sm" variant="ghost"
+                              onClick={() => { if (confirm(`Delete ${u.firstName} ${u.lastName} permanently?`)) { deleteUserMut.mutate(u._id); } }}
+                              leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                              className="text-xs text-red-400">Delete</Button>
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-dark-700">
-                      {usersQ.data?.data?.data?.users?.map((u: any) => (
-                        <tr key={u._id} className="hover:bg-gray-50 dark:hover:bg-dark-750 transition-colors">
-                          <td className="px-6 py-3">
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{u.firstName} {u.lastName}</p>
-                              <p className="text-xs text-gray-400">{u.email}</p>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant={u.role === 'admin' ? 'primary' : u.role === 'moderator' ? 'warning' : 'default'}>
-                              {u.role}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {u.twoFactorEnabled
-                              ? <CheckCircle2 className="w-4 h-4 text-green-500" />
-                              : <XCircle className="w-4 h-4 text-gray-300" />}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant={u.active !== false ? 'success' : 'error'}>
-                              {u.active !== false ? 'Active' : 'Banned'}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-400">
-                            {new Date(u.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-3">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant={u.active !== false ? 'ghost' : 'secondary'}
-                                onClick={() => banMut.mutate({ id: u._id, banned: u.active !== false })}
-                                isLoading={banMut.isPending}
-                                leftIcon={<Ban className="w-3.5 h-3.5" />}
-                                className="text-xs"
-                              >
-                                {u.active !== false ? 'Ban' : 'Unban'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  if (confirm(`Delete ${u.firstName} ${u.lastName} permanently?`)) {
-                                    deleteUserMut.mutate(u._id);
-                                  }
-                                }}
-                                leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                                className="text-xs text-red-500 hover:text-red-600"
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {usersQ.isLoading && (
-                    <div className="flex justify-center py-12">
-                      <div className="w-8 h-8 border-4 border-linkedin-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-                {usersQ.data?.data?.data?.pagination && (
-                  <div className="px-6">
-                    <Pagination
-                      page={userPage}
-                      pages={usersQ.data.data.data.pagination.pages}
-                      onPrev={() => setUserPage(p => p - 1)}
-                      onNext={() => setUserPage(p => p + 1)}
-                    />
+                    ))}
+                  </tbody>
+                </table>
+                {usersQ.isLoading && (
+                  <div className="flex justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+              {usersQ.data?.data?.data?.pagination && (
+                <div className="px-6">
+                  <Pagination page={userPage} pages={usersQ.data.data.data.pagination.pages}
+                    onPrev={() => setUserPage(p => p - 1)} onNext={() => setUserPage(p => p + 1)} />
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
         {/* ── Posts Tab ─────────────────────────────────── */}
         {tab === 'posts' && (
           <motion.div key="posts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Card className="border-0 shadow-soft">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-750">
-                        <th className="text-left px-6 py-3 font-medium text-gray-600 dark:text-gray-400">Author</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Content</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Created</th>
-                        <th className="text-right px-6 py-3 font-medium text-gray-600 dark:text-gray-400">Actions</th>
+            <div className="sp-card rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                      <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Author</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Content</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Created</th>
+                      <th className="text-right px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {postsQ.data?.data?.data?.posts?.map((p: any) => (
+                      <tr key={p._id} className="transition hover:bg-white/5"
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td className="px-6 py-3">
+                          <p className="font-medium text-xs" style={{ color: 'var(--color-text)' }}>{p.author?.firstName} {p.author?.lastName}</p>
+                        </td>
+                        <td className="px-4 py-3 max-w-xs">
+                          <p className="truncate" style={{ color: 'var(--color-muted)' }}>{p.content}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-dim)' }}>
+                          {new Date(p.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          <Button size="sm" variant="ghost"
+                            onClick={() => { if (confirm('Remove this post?')) deletePostMut.mutate(p._id); }}
+                            leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                            className="text-xs text-red-400">Remove</Button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-dark-700">
-                      {postsQ.data?.data?.data?.posts?.map((p: any) => (
-                        <tr key={p._id} className="hover:bg-gray-50 dark:hover:bg-dark-750 transition-colors">
-                          <td className="px-6 py-3">
-                            <p className="font-medium text-gray-900 dark:text-white text-xs">
-                              {p.author?.firstName} {p.author?.lastName}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3 max-w-xs">
-                            <p className="text-gray-700 dark:text-gray-300 truncate">{p.content}</p>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-400">
-                            {new Date(p.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-3 text-right">
-                            <Button size="sm" variant="ghost"
-                              onClick={() => { if (confirm('Remove this post?')) deletePostMut.mutate(p._id); }}
-                              leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                              className="text-xs text-red-500">Remove</Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {postsQ.isLoading && (
-                    <div className="flex justify-center py-12">
-                      <div className="w-8 h-8 border-4 border-linkedin-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-                {postsQ.data?.data?.data?.pagination && (
-                  <div className="px-6">
-                    <Pagination
-                      page={postPage}
-                      pages={postsQ.data.data.data.pagination.pages}
-                      onPrev={() => setPostPage(p => p - 1)}
-                      onNext={() => setPostPage(p => p + 1)}
-                    />
+                    ))}
+                  </tbody>
+                </table>
+                {postsQ.isLoading && (
+                  <div className="flex justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+              {postsQ.data?.data?.data?.pagination && (
+                <div className="px-6">
+                  <Pagination page={postPage} pages={postsQ.data.data.data.pagination.pages}
+                    onPrev={() => setPostPage(p => p - 1)} onNext={() => setPostPage(p => p + 1)} />
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
         {/* ── Jobs Tab ──────────────────────────────────── */}
         {tab === 'jobs' && (
           <motion.div key="jobs" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Card className="border-0 shadow-soft">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-750">
-                        <th className="text-left px-6 py-3 font-medium text-gray-600 dark:text-gray-400">Title</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Company</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Posted By</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Date</th>
-                        <th className="text-right px-6 py-3 font-medium text-gray-600 dark:text-gray-400">Actions</th>
+            <div className="sp-card rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                      <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Title</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Company</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Posted By</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Date</th>
+                      <th className="text-right px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobsQ.data?.data?.data?.jobs?.map((j: any) => (
+                      <tr key={j._id} className="transition hover:bg-white/5"
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td className="px-6 py-3 font-medium" style={{ color: 'var(--color-text)' }}>{j.title}</td>
+                        <td className="px-4 py-3" style={{ color: 'var(--color-muted)' }}>{j.company}</td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-dim)' }}>{j.postedBy?.firstName} {j.postedBy?.lastName}</td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-dim)' }}>{new Date(j.createdAt).toLocaleDateString()}</td>
+                        <td className="px-6 py-3 text-right">
+                          <Button size="sm" variant="ghost"
+                            onClick={() => { if (confirm('Remove this job?')) deleteJobMut.mutate(j._id); }}
+                            leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-400" />}
+                            className="text-xs text-red-400">Remove</Button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-dark-700">
-                      {jobsQ.data?.data?.data?.jobs?.map((j: any) => (
-                        <tr key={j._id} className="hover:bg-gray-50 dark:hover:bg-dark-750 transition-colors">
-                          <td className="px-6 py-3 font-medium text-gray-900 dark:text-white">{j.title}</td>
-                          <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{j.company}</td>
-                          <td className="px-4 py-3 text-xs text-gray-400">{j.postedBy?.firstName} {j.postedBy?.lastName}</td>
-                          <td className="px-4 py-3 text-xs text-gray-400">{new Date(j.createdAt).toLocaleDateString()}</td>
-                          <td className="px-6 py-3 text-right">
-                            <Button size="sm" variant="ghost"
-                              onClick={() => { if (confirm('Remove this job?')) deleteJobMut.mutate(j._id); }}
-                              leftIcon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                              className="text-xs text-red-500">Remove</Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {jobsQ.isLoading && (
-                    <div className="flex justify-center py-12">
-                      <div className="w-8 h-8 border-4 border-linkedin-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-                {jobsQ.data?.data?.data?.pagination && (
-                  <div className="px-6">
-                    <Pagination
-                      page={jobPage}
-                      pages={jobsQ.data.data.data.pagination.pages}
-                      onPrev={() => setJobPage(p => p - 1)}
-                      onNext={() => setJobPage(p => p + 1)}
-                    />
+                    ))}
+                  </tbody>
+                </table>
+                {jobsQ.isLoading && (
+                  <div className="flex justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+              {jobsQ.data?.data?.data?.pagination && (
+                <div className="px-6">
+                  <Pagination page={jobPage} pages={jobsQ.data.data.data.pagination.pages}
+                    onPrev={() => setJobPage(p => p - 1)} onNext={() => setJobPage(p => p + 1)} />
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
         {/* ── Audit Log Tab ─────────────────────────────── */}
         {tab === 'audit' && (
           <motion.div key="audit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Card className="border-0 shadow-soft">
-              <CardHeader className="px-6 py-4 border-b border-gray-100 dark:border-dark-700">
-                <div className="flex items-center gap-3">
-                  <select
-                    value={auditSeverity}
-                    onChange={e => { setAuditSeverity(e.target.value); setAuditPage(1); }}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-dark-600 bg-white dark:bg-dark-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">All severities</option>
-                    <option value="info">Info</option>
-                    <option value="warn">Warning</option>
-                    <option value="error">Error</option>
-                  </select>
-                  <Button size="sm" variant="ghost" onClick={() => qc.invalidateQueries({ queryKey: ['admin-audit'] })}
-                    leftIcon={<RefreshCw className="w-4 h-4" />}>Refresh</Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-dark-700 bg-gray-50 dark:bg-dark-750">
-                        <th className="text-left px-6 py-3 font-medium text-gray-600 dark:text-gray-400">Event</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Severity</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">User</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">IP</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">Time</th>
+            <div className="sp-card rounded-2xl overflow-hidden">
+              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                <select
+                  value={auditSeverity}
+                  onChange={e => { setAuditSeverity(e.target.value); setAuditPage(1); }}
+                  className="px-3 py-1.5 text-sm rounded-xl outline-none"
+                  style={{ background: 'var(--color-bg)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--color-text)' }}
+                >
+                  <option value="">All severities</option>
+                  <option value="info">Info</option>
+                  <option value="warn">Warning</option>
+                  <option value="error">Error</option>
+                </select>
+                <Button size="sm" variant="ghost" onClick={() => qc.invalidateQueries({ queryKey: ['admin-audit'] })}
+                  leftIcon={<RefreshCw className="w-4 h-4" />}>Refresh</Button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.03)' }}>
+                      <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Event</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Severity</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>User</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>IP</th>
+                      <th className="text-left px-4 py-3 font-medium text-xs uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditQ.data?.data?.data?.logs?.map((log: any) => (
+                      <tr key={log._id} className="transition hover:bg-white/5"
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td className="px-6 py-3">
+                          <p className="font-mono text-xs" style={{ color: 'var(--color-text)' }}>{log.event}</p>
+                        </td>
+                        <td className="px-4 py-3"><SeverityBadge severity={log.severity} /></td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-muted)' }}>
+                          {log.userId ? `${log.userId.firstName} ${log.userId.lastName}` : '—'}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--color-dim)' }}>{log.ip ?? '—'}</td>
+                        <td className="px-4 py-3 text-xs" style={{ color: 'var(--color-dim)' }}>
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-dark-700">
-                      {auditQ.data?.data?.data?.logs?.map((log: any) => (
-                        <tr key={log._id} className="hover:bg-gray-50 dark:hover:bg-dark-750 transition-colors">
-                          <td className="px-6 py-3">
-                            <p className="font-mono text-xs text-gray-900 dark:text-white">{log.event}</p>
-                          </td>
-                          <td className="px-4 py-3"><SeverityBadge severity={log.severity} /></td>
-                          <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                            {log.userId ? `${log.userId.firstName} ${log.userId.lastName}` : '—'}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs text-gray-400">{log.ip ?? '—'}</td>
-                          <td className="px-4 py-3 text-xs text-gray-400">
-                            {new Date(log.createdAt).toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {auditQ.isLoading && (
-                    <div className="flex justify-center py-12">
-                      <div className="w-8 h-8 border-4 border-linkedin-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
-                {auditQ.data?.data?.data?.pagination && (
-                  <div className="px-6">
-                    <Pagination
-                      page={auditPage}
-                      pages={auditQ.data.data.data.pagination.pages}
-                      onPrev={() => setAuditPage(p => p - 1)}
-                      onNext={() => setAuditPage(p => p + 1)}
-                    />
+                    ))}
+                  </tbody>
+                </table>
+                {auditQ.isLoading && (
+                  <div className="flex justify-center py-12">
+                    <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-accent)', borderTopColor: 'transparent' }} />
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+              {auditQ.data?.data?.data?.pagination && (
+                <div className="px-6">
+                  <Pagination page={auditPage} pages={auditQ.data.data.data.pagination.pages}
+                    onPrev={() => setAuditPage(p => p - 1)} onNext={() => setAuditPage(p => p + 1)} />
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

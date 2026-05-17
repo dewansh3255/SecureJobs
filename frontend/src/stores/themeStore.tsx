@@ -26,12 +26,11 @@ const useThemeStore = create<ThemeStore>((set, get) => ({
   },
 }));
 
-// Initialize theme from localStorage or system preference
+// Initialize theme from localStorage — default to dark (Spatial Dark is the primary design)
 const initializeTheme = () => {
   const savedTheme = localStorage.getItem('theme') as Theme | null;
-  const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-  const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+  // Default to dark if no preference saved
+  const initialTheme: Theme = savedTheme || 'dark';
 
   document.documentElement.classList.toggle('dark', initialTheme === 'dark');
   useThemeStore.setState({ theme: initialTheme, isDark: initialTheme === 'dark' });
@@ -83,15 +82,16 @@ export const ThemeToggle = () => {
   return (
     <button
       onClick={handleToggle}
-      className="relative inline-flex items-center justify-center w-10 h-10 rounded-lg
-                 hover:bg-gray-100 dark:hover:bg-dark-700
+      className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl
+                 bg-dark-750/60 border border-dark-600/50
+                 hover:border-accent-500/40 hover:bg-accent-500/10
                  transition-all duration-200"
       aria-label="Toggle theme"
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {/* Sun icon (shown in dark mode) */}
       <svg
-        className={`w-5 h-5 transition-all duration-300 ${
+        className={`w-4 h-4 text-dark-300 transition-all duration-300 ${
           isDark ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90 absolute'
         }`}
         fill="none"
@@ -108,7 +108,7 @@ export const ThemeToggle = () => {
 
       {/* Moon icon (shown in light mode) */}
       <svg
-        className={`w-5 h-5 transition-all duration-300 ${
+        className={`w-4 h-4 text-dark-300 transition-all duration-300 ${
           isDark ? 'opacity-0 -rotate-90 absolute' : 'opacity-100 rotate-0'
         }`}
         fill="none"
@@ -123,8 +123,8 @@ export const ThemeToggle = () => {
         />
       </svg>
 
-      {/* Invisible icon to maintain layout */}
-      <svg className="w-5 h-5 invisible" fill="none" viewBox="0 0 24 24" />
+      {/* Invisible placeholder to maintain layout */}
+      <svg className="w-4 h-4 invisible" fill="none" viewBox="0 0 24 24" />
     </button>
   );
 };

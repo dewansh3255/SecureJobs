@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept 1 — Obsidian (Dark Glassmorphism)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #050508;
+    --bg2: #0d0d14;
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-hover: rgba(255,255,255,0.07);
+    --cyan: #00d4ff;
+    --purple: #a855f7;
+    --pink: #f0abfc;
+    --green: #4ade80;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow blobs */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    animation: float 8s ease-in-out infinite;
+  }
+  .blob-1 { width: 500px; height: 500px; background: rgba(168,85,247,0.12); top: -100px; left: -100px; }
+  .blob-2 { width: 400px; height: 400px; background: rgba(0,212,255,0.1); bottom: 100px; right: -100px; animation-delay: -4s; }
+  .blob-3 { width: 300px; height: 300px; background: rgba(240,171,252,0.06); top: 50%; left: 40%; animation-delay: -2s; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+
+  /* ── Navbar ── */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0; right: 0;
+    z-index: 100;
+    padding: 0 32px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(20px) saturate(180%);
+    background: rgba(5,5,8,0.7);
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 4px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-links a:hover, .nav-links a.active {
+    color: var(--text);
+    background: var(--glass);
+  }
+  .nav-links a.active { color: var(--cyan); }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .notif-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    color: var(--text-muted);
+  }
+  .notif-btn:hover { background: var(--glass-hover); color: var(--text); }
+  .notif-dot {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 6px; height: 6px;
+    background: var(--cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--cyan);
+  }
+
+  .avatar-sm {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--cyan));
+    cursor: pointer;
+    border: 2px solid var(--glass-border);
+    transition: border-color 0.2s;
+  }
+  .avatar-sm:hover { border-color: var(--cyan); }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 280px;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 20px 40px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Glass Card ── */
+  .glass-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    backdrop-filter: blur(20px);
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .glass-card:hover {
+    border-color: rgba(0,212,255,0.2);
+    background: var(--glass-hover);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+  .profile-card {
+    padding: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .profile-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(135deg, rgba(168,85,247,0.3), rgba(0,212,255,0.3));
+  }
+  .profile-avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--cyan));
+    margin: 16px auto 12px;
+    position: relative;
+    border: 3px solid var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 20px rgba(168,85,247,0.4);
+  }
+  .online-dot {
+    position: absolute;
+    bottom: 2px; right: 2px;
+    width: 12px; height: 12px;
+    background: var(--green);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px var(--green);
+  }
+  .profile-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .profile-title { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .stat-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .nav-menu { padding: 8px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--glass); color: var(--text); }
+  .nav-item.active {
+    background: rgba(0,212,255,0.1);
+    color: var(--cyan);
+    border: 1px solid rgba(0,212,255,0.2);
+  }
+  .nav-item .icon { width: 16px; font-size: 16px; }
+  .badge {
+    margin-left: auto;
+    background: var(--purple);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  /* ── Feed ── */
+  .feed { display: flex; flex-direction: column; gap: 16px; }
+
+  .create-post {
+    padding: 20px;
+  }
+  .create-input-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .create-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--cyan));
+    flex-shrink: 0;
+    border: 2px solid var(--glass-border);
+  }
+  .create-input {
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    height: 44px;
+  }
+  .create-input:focus {
+    border-color: rgba(0,212,255,0.4);
+    height: 80px;
+    background: rgba(255,255,255,0.05);
+  }
+  .create-input::placeholder { color: var(--text-muted); }
+  .post-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: flex-end;
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-ghost:hover { background: var(--glass); color: var(--text); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    border: none;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.3); }
+
+  /* ── Post Card ── */
+  .post-card { padding: 20px; }
+  .post-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+  .post-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .post-avatar.a1 { background: linear-gradient(135deg, #f0abfc, #818cf8); }
+  .post-avatar.a2 { background: linear-gradient(135deg, #4ade80, #06b6d4); }
+  .post-avatar.a3 { background: linear-gradient(135deg, #fb923c, #f43f5e); }
+
+  .post-meta { flex: 1; }
+  .post-name {
+    font-weight: 600;
+    font-size: 14px;
+    font-family: 'Space Grotesk', sans-serif;
+    margin-bottom: 2px;
+  }
+  .post-role { font-size: 11px; color: var(--text-muted); }
+  .post-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .post-more {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .post-more:hover { background: var(--glass-hover); color: var(--text); }
+
+  .post-content {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+  }
+  .post-content strong { color: var(--text); font-weight: 600; }
+  .post-tag {
+    display: inline-block;
+    background: rgba(0,212,255,0.1);
+    color: var(--cyan);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 4px;
+  }
+
+  /* Post image placeholder */
+  .post-image {
+    width: 100%; height: 180px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(0,212,255,0.2));
+    border: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .post-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 40%, rgba(0,212,255,0.05));
+  }
+
+  .post-footer {
+    display: flex;
+    gap: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--glass-border);
+  }
+  .reaction-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+  }
+  .reaction-btn:hover { background: var(--glass); color: var(--text); }
+  .reaction-btn.liked { color: var(--cyan); }
+  .reaction-btn .count { font-weight: 600; }
+
+  /* ── Right Sidebar ── */
+  .right-sidebar { display: flex; flex-direction: column; gap: 12px; }
+
+  .widget-card { padding: 18px; }
+  .widget-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .widget-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--glass-border);
+  }
+
+  .suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+  }
+  .suggestion-item:hover { background: var(--glass); }
+  .sug-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .sug-info { flex: 1; min-width: 0; }
+  .sug-name { font-size: 13px; font-weight: 500; truncate; }
+  .sug-role { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .connect-btn {
+    background: transparent;
+    border: 1px solid rgba(0,212,255,0.4);
+    color: var(--cyan);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .connect-btn:hover {
+    background: rgba(0,212,255,0.1);
+  }
+
+  /* Trending */
+  .trend-item {
+    padding: 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 4px;
+  }
+  .trend-item:hover { background: var(--glass); }
+  .trend-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .trend-tag {
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Space Grotesk', sans-serif;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .trend-count { font-size: 11px; color: var(--text-muted); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+  /* Label badge */
+  .concept-label {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--purple), var(--cyan));
+    padding: 8px 24px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    letter-spacing: 0.5px;
+    z-index: 999;
+    box-shadow: 0 8px 32px rgba(168,85,247,0.4);
+  }
+
+  /* Glowing divider */
+  .glow-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
+    margin: 4px 0;
+    opacity: 0.3;
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<!-- Navbar -->
+<nav>
+  <div class="logo">⬡ NexusNet</div>
+  <ul class="nav-links">
+    <li><a href="#" class="active">🏠 Home</a></li>
+    <li><a href="#">👥 Network</a></li>
+    <li><a href="#">💼 Jobs</a></li>
+    <li><a href="#">💬 Messages</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="notif-btn">🔔<span class="notif-dot"></span></div>
+    <div class="avatar-sm"></div>
+  </div>
+</nav>
+
+<!-- Layout -->
+<div class="layout">
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <div class="glass-card profile-card">
+      <div class="profile-avatar">DK<span class="online-dot"></span></div>
+      <div class="profile-name">Dewansh Khandelwal</div>
+      <div class="profile-title">Security Engineer • FCS-26</div>
+      <div class="glow-divider"></div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-num">248</div><div class="stat-label">Connections</div></div>
+        <div class="stat-box"><div class="stat-num">1.2k</div><div class="stat-label">Views</div></div>
+        <div class="stat-box"><div class="stat-num">34</div><div class="stat-label">Posts</div></div>
+        <div class="stat-box"><div class="stat-num">97%</div><div class="stat-label">Profile</div></div>
+      </div>
+    </div>
+
+    <div class="glass-card nav-menu">
+      <div class="nav-item active"><span class="icon">⊞</span> Feed</div>
+      <div class="nav-item"><span class="icon">👤</span> Profile</div>
+      <div class="nav-item"><span class="icon">🌐</span> Network <span class="badge">3</span></div>
+      <div class="nav-item"><span class="icon">💬</span> Messages <span class="badge">7</span></div>
+      <div class="nav-item"><span class="icon">💼</span> Jobs</div>
+      <div class="nav-item"><span class="icon">🔔</span> Notifications <span class="badge">12</span></div>
+      <div class="nav-item"><span class="icon">⚙</span> Settings</div>
+    </div>
+  </aside>
+
+  <!-- Feed -->
+  <main class="feed">
+    <!-- Create post -->
+    <div class="glass-card create-post">
+      <div class="create-input-row">
+        <div class="create-avatar"></div>
+        <textarea class="create-input" placeholder="Share something with your network..."></textarea>
+      </div>
+      <div class="post-actions">
+        <button class="btn-ghost">📎 Attach</button>
+        <button class="btn-ghost">📷 Photo</button>
+        <button class="btn-primary">Post →</button>
+      </div>
+    </div>
+
+    <!-- Post 1 -->
+    <div class="glass-card post-card">
+      <div class="post-header">
+        <div class="post-avatar a1">AK</div>
+        <div class="post-meta">
+          <div class="post-name">Arjun Kumar</div>
+          <div class="post-role">Full Stack Developer @ Google DeepMind</div>
+          <div class="post-time">2 hours ago</div>
+        </div>
+        <div class="post-more">⋯</div>
+      </div>
+      <div class="post-content">
+        🚀 Just shipped a zero-day vulnerability patch that affected 2.4M users. The <strong>CVE-2025-8834</strong> buffer overflow in our auth layer was subtle — only triggered with specific UTF-8 encoding edge cases. <br><br>
+        Key takeaway: <strong>always fuzz your input validators</strong> with Unicode edge cases, not just ASCII. The fix was 3 lines of code, the hunt was 3 weeks. <br><br>
+        <span class="post-tag">#security</span><span class="post-tag">#bufferoverflow</span><span class="post-tag">#CVE</span>
+      </div>
+      <div class="post-footer">
+        <button class="reaction-btn liked">❤️ <span class="count">284</span></button>
+        <button class="reaction-btn">💬 <span class="count">47</span></button>
+        <button class="reaction-btn">↗️ Share</button>
+        <button class="reaction-btn" style="margin-left:auto">🔖</button>
+      </div>
+    </div>
+
+    <!-- Post 2 with image -->
+    <div class="glass-card post-card">
+      <div class="post-header">
+        <div class="post-avatar a2">SM</div>
+        <div class="post-meta">
+          <div class="post-name">Sneha Mishra</div>
+          <div class="post-role">ML Engineer @ OpenAI • PhD IIT Bombay</div>
+          <div class="post-time">5 hours ago</div>
+        </div>
+        <div class="post-more">⋯</div>
+      </div>
+      <div class="post-content">
+        Excited to share our new paper: <strong>"Adversarial Robustness in LLM Fine-tuning"</strong> — we found that standard RLHF pipelines are 3.7× more vulnerable to adversarial inputs than previously thought. Check the link below 👇
+      </div>
+      <div class="post-image" style="background:linear-gradient(135deg,rgba(74,222,128,0.15),rgba(6,182,212,0.15))">
+        📊 Research Paper Preview — Adversarial Robustness Chart
+      </div>
+      <div class="post-footer">
+        <button class="reaction-btn">❤️ <span class="count">1.1k</span></button>
+        <button class="reaction-btn">💬 <span class="count">89</span></button>
+        <button class="reaction-btn">↗️ Share</button>
+        <button class="reaction-btn" style="margin-left:auto">🔖</button>
+      </div>
+    </div>
+
+    <!-- Post 3 -->
+    <div class="glass-card post-card">
+      <div class="post-header">
+        <div class="post-avatar a3">RV</div>
+        <div class="post-meta">
+          <div class="post-name">Rahul Verma</div>
+          <div class="post-role">Penetration Tester @ Crowdstrike</div>
+          <div class="post-time">Yesterday</div>
+        </div>
+        <div class="post-more">⋯</div>
+      </div>
+      <div class="post-content">
+        Hot take: 90% of "AI-powered security tools" are just regex with a GPT wrapper. Real security requires <strong>human intuition + adversarial thinking</strong> that current LLMs fundamentally cannot replicate. Change my mind. 🧵<br><br>
+        <span class="post-tag">#cybersecurity</span><span class="post-tag">#AI</span><span class="post-tag">#pentest</span>
+      </div>
+      <div class="post-footer">
+        <button class="reaction-btn">❤️ <span class="count">532</span></button>
+        <button class="reaction-btn">💬 <span class="count">203</span></button>
+        <button class="reaction-btn">↗️ Share</button>
+        <button class="reaction-btn" style="margin-left:auto">🔖</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Right Sidebar -->
+  <aside class="right-sidebar">
+    <div class="glass-card widget-card">
+      <div class="widget-title">People You May Know</div>
+      <div class="suggestion-item">
+        <div class="sug-avatar" style="background:linear-gradient(135deg,#818cf8,#c084fc)">PK</div>
+        <div class="sug-info">
+          <div class="sug-name">Priya K.</div>
+          <div class="sug-role">Security Researcher @ Microsoft</div>
+        </div>
+        <button class="connect-btn">+ Connect</button>
+      </div>
+      <div class="suggestion-item">
+        <div class="sug-avatar" style="background:linear-gradient(135deg,#34d399,#06b6d4)">NK</div>
+        <div class="sug-info">
+          <div class="sug-name">Nikhil K.</div>
+          <div class="sug-role">DevSecOps @ Amazon</div>
+        </div>
+        <button class="connect-btn">+ Connect</button>
+      </div>
+      <div class="suggestion-item">
+        <div class="sug-avatar" style="background:linear-gradient(135deg,#f87171,#fb923c)">AS</div>
+        <div class="sug-info">
+          <div class="sug-name">Ananya S.</div>
+          <div class="sug-role">Cloud Architect @ Infosys</div>
+        </div>
+        <button class="connect-btn">+ Connect</button>
+      </div>
+    </div>
+
+    <div class="glass-card widget-card">
+      <div class="widget-title">Trending</div>
+      <div class="trend-item">
+        <div class="trend-label">Trending in Security</div>
+        <div class="trend-tag">#ZeroTrust</div>
+        <div class="trend-count">4,821 posts</div>
+      </div>
+      <div class="trend-item">
+        <div class="trend-label">Trending in AI</div>
+        <div class="trend-tag">#LLMSecurity</div>
+        <div class="trend-count">2,309 posts</div>
+      </div>
+      <div class="trend-item">
+        <div class="trend-label">Trending in Dev</div>
+        <div class="trend-tag">#RustSecurity</div>
+        <div class="trend-count">1,044 posts</div>
+      </div>
+    </div>
+
+    <div class="glass-card widget-card">
+      <div class="widget-title">Jobs For You</div>
+      <div style="padding: 4px 0;">
+        <div style="padding:10px; border-radius:10px; cursor:pointer; transition:all 0.2s; border:1px solid transparent;" onmouseover="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(0,212,255,0.15)'" onmouseout="this.style.background='transparent';this.style.borderColor='transparent'">
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px;font-family:'Space Grotesk',sans-serif">Security Engineer</div>
+          <div style="font-size:11px;color:var(--text-muted)">Google • Bangalore • ₹45L–₹80L</div>
+          <div style="font-size:10px;color:var(--cyan);margin-top:4px">95% match</div>
+        </div>
+        <div style="padding:10px; border-radius:10px; cursor:pointer; transition:all 0.2s; border:1px solid transparent;" onmouseover="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(0,212,255,0.15)'" onmouseout="this.style.background='transparent';this.style.borderColor='transparent'">
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px;font-family:'Space Grotesk',sans-serif">ML Security Researcher</div>
+          <div style="font-size:11px;color:var(--text-muted)">OpenAI • Remote • $180k–$250k</div>
+          <div style="font-size:10px;color:var(--purple);margin-top:4px">88% match</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="concept-label">✦ Concept 1 — Obsidian (Dark Glassmorphism)</div>
+
+</body>
+</html>

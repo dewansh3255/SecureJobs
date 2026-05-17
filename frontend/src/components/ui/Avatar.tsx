@@ -31,30 +31,32 @@ const Avatar = forwardRef<HTMLImageElement, AvatarProps>(
       <div className={cn('relative inline-flex', className)}>
         <div
           className={cn(
-            'relative inline-flex items-center justify-center overflow-hidden rounded-full',
-            'bg-gradient-to-br from-linkedin-400 to-linkedin-600',
-            'text-white font-medium',
+            'relative inline-flex items-center justify-center overflow-hidden rounded-xl',
+            'bg-gradient-to-br from-accent-600 to-accent2-600',
+            'text-white font-semibold',
             sizeClasses[size]
           )}
+          style={{ border: '1.5px solid rgba(124,111,224,0.3)' }}
         >
           {src ? (
             <img
               ref={ref}
               src={src}
               alt={alt || name || 'Avatar'}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover rounded-xl"
               {...props}
             />
           ) : (
-            <span className="text-sm">{fallback || initials}</span>
+            <span className="text-sm tracking-wide">{fallback || initials}</span>
           )}
         </div>
         {isOnline && (
           <span
             className={cn(
-              'absolute bottom-0 right-0 rounded-full bg-green-500 border-2 border-white dark:border-dark-800',
-              size === 'sm' ? 'w-2 h-2' : 'w-3 h-3'
+              'absolute bottom-0.5 right-0.5 rounded-full bg-emerald-500',
+              size === 'sm' ? 'w-2 h-2' : 'w-2.5 h-2.5'
             )}
+            style={{ border: '2px solid var(--color-surface)' }}
           />
         )}
       </div>

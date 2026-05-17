@@ -1,232 +1,365 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
   Users,
   Briefcase,
   MessageSquare,
   Bell,
-  User,
   Settings,
   LogOut,
-  Menu,
-  X,
   Shield,
+  Compass,
+  Bookmark,
+  Search,
+  X,
 } from 'lucide-react';
 import { ThemeToggle } from '@stores/themeStore';
 import { useAuth } from '@stores/authStore';
-import Avatar from '@components/ui/Avatar';
-import Badge from '@components/ui/Badge';
 import { useState } from 'react';
 import { useE2EKeys } from '@hooks/useE2EKeys';
 
-const navigation = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'Network', href: '/network', icon: Users },
-  { name: 'Jobs', href: '/jobs', icon: Briefcase },
-  { name: 'Messaging', href: '/messaging', icon: MessageSquare, badge: true },
-  { name: 'Notifications', href: '/notifications', icon: Bell },
+const navItems = [
+  { name: 'Home',          href: '/',             icon: Home },
+  { name: 'Network',       href: '/network',      icon: Users },
+  { name: 'Messages',      href: '/messaging',    icon: MessageSquare, badge: true },
+  { name: 'Jobs',          href: '/jobs',         icon: Briefcase },
+  { name: 'Notifications', href: '/notifications',icon: Bell },
+  { name: 'Explore',       href: '/network',      icon: Compass },
+  { name: 'Saved',         href: '/jobs',         icon: Bookmark },
 ];
+
+const PAGE_LABELS: Record<string, string> = {
+  '/':             'Feed',
+  '/network':      'Network',
+  '/jobs':         'Jobs',
+  '/messaging':    'Messages',
+  '/notifications':'Notifications',
+  '/settings':     'Settings',
+  '/admin':        'Admin',
+};
 
 export default function MainLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Initialize E2E encryption key pair (background, non-blocking)
   useE2EKeys();
 
   const handleLogout = async () => {
     await logout();
+    navigate('/login', { replace: true });
   };
 
+  const pageLabel = PAGE_LABELS[location.pathname] ||
+    (location.pathname.startsWith('/profile') ? 'Profile' : 'Nexus');
+
+  const initials = user
+    ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
+    : 'U';
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-900">
-      {/* ===========================================
-          Header
-      =========================================== */}
-      <header className="sticky top-0 z-50 bg-white dark:bg-dark-800 border-b border-gray-200 dark:border-dark-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-linkedin-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">in</span>
-              </div>
-              <span className="hidden sm:block text-xl font-semibold text-gray-900 dark:text-white">
-                Professional Network
+    <div
+      className="min-h-screen"
+      style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
+    >
+      {/* ── Ambient background blobs ── */}
+      <div className="ambient-bg" aria-hidden="true">
+        <div className="ambient-blob ambient-blob-1" />
+        <div className="ambient-blob ambient-blob-2" />
+        <div className="ambient-blob ambient-blob-3" />
+      </div>
+
+      {/* ── Left Dock ── */}
+      <nav
+        className="fixed left-0 top-0 bottom-0 z-50 flex flex-col items-center py-5 gap-1"
+        style={{
+          width: 'var(--dock-width)',
+          background: 'rgba(13,13,21,0.85)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
+        {/* Logo */}
+        <Link
+          to="/"
+          className="w-9 h-9 rounded-xl flex items-center justify-center mb-5 font-bold text-lg"
+          style={{
+            background: 'linear-gradient(135deg, #7c6fe0, #e06fbc)',
+            color: 'white',
+            boxShadow: '0 4px 20px rgba(124,111,224,0.4)',
+          }}
+          title="Nexus"
+        >
+          N
+        </Link>
+
+        {/* Main nav items */}
+        {navItems.slice(0, 5).map((item) => {
+          const isActive = location.pathname === item.href ||
+            (item.href !== '/' && location.pathname.startsWith(item.href));
+          return (
+            <Link
+              key={item.name}
+              to={item.href}
+              title={item.name}
+              className="relative w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200 group"
+              style={{
+                background: isActive ? 'rgba(124,111,224,0.18)' : 'transparent',
+                color: isActive ? '#9d94f0' : '#6a6a8a',
+                boxShadow: isActive ? 'inset 0 0 0 1px rgba(124,111,224,0.35)' : 'none',
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.1)';
+                  (e.currentTarget as HTMLElement).style.color = '#9d94f0';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  (e.currentTarget as HTMLElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLElement).style.color = '#6a6a8a';
+                }
+              }}
+            >
+              <item.icon className="w-5 h-5" />
+              {item.badge && (
+                <span
+                  className="absolute top-1.5 right-1.5 w-4 h-4 flex items-center justify-center text-white text-[8px] font-bold rounded-full"
+                  style={{ background: '#e06fbc', border: '2px solid var(--color-bg)' }}
+                >
+                  3
+                </span>
+              )}
+              {/* Tooltip */}
+              <span
+                className="absolute left-full ml-2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
+                style={{
+                  background: 'rgba(26,26,46,0.95)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'var(--color-text)',
+                  zIndex: 60,
+                }}
+              >
+                {item.name}
               </span>
             </Link>
+          );
+        })}
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-1">
-              {navigation.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    className={`
-                      relative flex items-center px-4 py-2 text-sm font-medium rounded-lg
-                      transition-all duration-200
-                      ${
-                        isActive
-                          ? 'text-linkedin-600 dark:text-linkedin-400 bg-linkedin-50 dark:bg-linkedin-900/20'
-                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-dark-700'
-                      }
-                    `}
-                  >
-                    <item.icon className="w-5 h-5 mr-1.5" />
-                    {item.name}
-                    {item.badge && (
-                      <Badge variant="error" size="sm" className="ml-2">
-                        3
-                      </Badge>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
+        {/* Divider */}
+        <div className="w-7 h-px my-1" style={{ background: 'rgba(255,255,255,0.07)' }} />
 
-            {/* Right side actions */}
-            <div className="flex items-center space-x-2">
-              {/* Theme Toggle */}
-              <ThemeToggle />
+        {/* Secondary nav */}
+        {navItems.slice(5).map((item) => (
+          <Link
+            key={item.name}
+            to={item.href}
+            title={item.name}
+            className="relative w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200 group"
+            style={{ color: '#4a4a6a' }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.1)';
+              (e.currentTarget as HTMLElement).style.color = '#9d94f0';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = '#4a4a6a';
+            }}
+          >
+            <item.icon className="w-5 h-5" />
+            <span
+              className="absolute left-full ml-2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
+              style={{
+                background: 'rgba(26,26,46,0.95)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--color-text)',
+                zIndex: 60,
+              }}
+            >
+              {item.name}
+            </span>
+          </Link>
+        ))}
 
-              {/* User Menu */}
-              <div className="hidden sm:flex items-center space-x-3 pl-3 border-l border-gray-200 dark:border-dark-700">
-                <Link
-                  to={`/profile/${user?.id}`}
-                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-                >
-                  <Avatar
-                    name={user?.fullName}
-                    src={user?.profilePicture}
-                    size="sm"
-                    isOnline
-                  />
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[120px] truncate">
-                    {user?.firstName}
-                  </span>
-                </Link>
+        {/* Bottom: settings + avatar */}
+        <div className="mt-auto flex flex-col items-center gap-2">
+          <Link
+            to="/settings"
+            title="Settings"
+            className="w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200"
+            style={{ color: '#4a4a6a' }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.1)';
+              (e.currentTarget as HTMLElement).style.color = '#9d94f0';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = '#4a4a6a';
+            }}
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
 
-                <Link
-                  to="/settings"
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg transition-colors"
-                  title="Settings"
-                >
-                  <Settings className="w-5 h-5" />
-                </Link>
+          {user?.role === 'admin' && (
+            <Link
+              to="/admin"
+              title="Admin"
+              className="w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200"
+              style={{ color: '#e05555' }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(224,85,85,0.1)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = 'transparent';
+              }}
+            >
+              <Shield className="w-5 h-5" />
+            </Link>
+          )}
 
-                {user?.role === 'admin' && (
-                  <Link
-                    to="/admin"
-                    className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title="Admin Panel"
-                  >
-                    <Shield className="w-5 h-5" />
-                  </Link>
-                )}
+          {/* User avatar button */}
+          <Link
+            to={`/profile/${user?.id}`}
+            title={user?.fullName ?? 'Profile'}
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-200"
+            style={{
+              background: 'linear-gradient(135deg, #1e1830, #2a2240)',
+              border: '1.5px solid rgba(124,111,224,0.45)',
+              color: '#9d94f0',
+            }}
+          >
+            {user?.profilePicture ? (
+              <img src={user.profilePicture} alt={initials} className="w-full h-full object-cover rounded-xl" />
+            ) : (
+              initials
+            )}
+          </Link>
+        </div>
+      </nav>
 
-                <button
-                  onClick={handleLogout}
-                  className="p-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Mobile menu button */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg"
-              >
-                {mobileMenuOpen ? (
-                  <X className="w-6 h-6" />
-                ) : (
-                  <Menu className="w-6 h-6" />
-                )}
-              </button>
-            </div>
-          </div>
+      {/* ── Top Header ── */}
+      <header
+        className="fixed top-0 right-0 z-40 flex items-center px-5 gap-3"
+        style={{
+          left: 'var(--dock-width)',
+          height: 'var(--header-height)',
+          background: 'rgba(6,6,8,0.75)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}
+      >
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-bold" style={{ color: '#9d94f0', letterSpacing: '-0.3px' }}>
+            Nexus
+          </span>
+          <span style={{ color: 'var(--color-dim)' }}>/</span>
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
+            {pageLabel}
+          </span>
         </div>
 
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="md:hidden border-t border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800 px-4 py-3 space-y-1"
-          >
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`
-                  flex items-center px-4 py-3 text-sm font-medium rounded-lg
-                  ${
-                    location.pathname === item.href
-                      ? 'text-linkedin-600 dark:text-linkedin-400 bg-linkedin-50 dark:bg-linkedin-900/20'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700'
-                  }
-                `}
-              >
-                <item.icon className="w-5 h-5 mr-3" />
-                {item.name}
-                {item.badge && (
-                  <Badge variant="error" size="sm" className="ml-auto">
-                    3
-                  </Badge>
-                )}
-              </Link>
-            ))}
-            <div className="pt-3 border-t border-gray-200 dark:border-dark-700">
-              <Link
-                to={`/profile/${user?.id}`}
-                className="flex items-center px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg"
-              >
-                <User className="w-5 h-5 mr-3" />
-                View Profile
-              </Link>
-              <Link
-                to="/settings"
-                className="flex items-center px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg"
-              >
-                <Settings className="w-5 h-5 mr-3" />
-                Settings
-              </Link>
-              {user?.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  className="flex items-center px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Shield className="w-5 h-5 mr-3" />
-                  Admin Panel
-                </Link>
-              )}
-              <button
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center w-full px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-              >
-                <LogOut className="w-5 h-5 mr-3" />
-                Logout
+        {/* Search */}
+        <AnimatePresence>
+          {searchOpen ? (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center gap-2 rounded-xl overflow-hidden ml-auto"
+              style={{
+                background: 'rgba(19,19,31,0.9)',
+                border: '1px solid rgba(124,111,224,0.4)',
+                padding: '6px 14px',
+              }}
+            >
+              <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-muted)' }} />
+              <input
+                autoFocus
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search people, posts, jobs…"
+                className="flex-1 bg-transparent border-none outline-none text-sm"
+                style={{ color: 'var(--color-text)', fontFamily: 'inherit' }}
+              />
+              <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>
+                <X className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
               </button>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          ) : (
+            <button
+              className="ml-auto w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
+              style={{
+                background: 'rgba(26,26,46,0.6)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                color: 'var(--color-muted)',
+              }}
+              onClick={() => setSearchOpen(true)}
+              title="Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          )}
+        </AnimatePresence>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Notifications */}
+          <Link
+            to="/notifications"
+            className="relative w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
+            style={{
+              background: 'rgba(26,26,46,0.6)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: 'var(--color-muted)',
+            }}
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            <span
+              className="absolute top-0.5 right-0.5 w-3.5 h-3.5 flex items-center justify-center text-white text-[8px] font-bold rounded-full"
+              style={{ background: '#e06fbc', border: '2px solid var(--color-bg)' }}
+            >
+              5
+            </span>
+          </Link>
+
+          {/* Theme toggle */}
+          <ThemeToggle />
+
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
+            style={{
+              background: 'rgba(26,26,46,0.6)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              color: 'var(--color-muted)',
+            }}
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
-      {/* ===========================================
-          Main Content
-      =========================================== */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* ── Page Content ── */}
+      <main
+        className="relative z-10 min-h-screen"
+        style={{
+          marginLeft: 'var(--dock-width)',
+          marginTop: 'var(--header-height)',
+          padding: '24px',
+        }}
+      >
         <Outlet />
       </main>
     </div>

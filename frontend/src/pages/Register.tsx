@@ -5,7 +5,6 @@ import { Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@stores/authStore';
 import { Button } from '@components/ui/Button';
 import { Input } from '@components/ui/Input';
-import { Card, CardContent } from '@components/ui/Card';
 import { toast } from 'sonner';
 
 export default function RegisterPage() {
@@ -25,10 +24,8 @@ export default function RegisterPage() {
     e.preventDefault();
     clearError();
     setIsLoading(true);
-
     try {
       await register(formData);
-      // Navigate to mandatory 2FA setup — the app won't be accessible until 2FA is configured
       navigate('/setup-2fa', { replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
@@ -38,142 +35,158 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-dark-900 dark:to-dark-800">
+    <div
+      className="min-h-screen flex flex-col relative overflow-hidden"
+      style={{ background: 'var(--color-bg)' }}
+    >
+      {/* Ambient blobs */}
+      <div className="ambient-bg" aria-hidden="true">
+        <div className="ambient-blob ambient-blob-1" />
+        <div className="ambient-blob ambient-blob-2" />
+        <div className="ambient-blob ambient-blob-3" />
+      </div>
+
       {/* Header */}
-      <header className="w-full py-4 px-6">
-        <Link to="/" className="inline-flex items-center space-x-2">
-          <div className="w-10 h-10 bg-linkedin-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xl">in</span>
+      <header className="relative z-10 w-full py-5 px-8">
+        <Link to="/" className="inline-flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-lg text-white"
+            style={{
+              background: 'linear-gradient(135deg, #7c6fe0, #e06fbc)',
+              boxShadow: '0 4px 20px rgba(124,111,224,0.4)',
+            }}
+          >
+            N
           </div>
-          <span className="text-xl font-semibold text-gray-900 dark:text-white">
-            Professional Network
+          <span className="text-base font-bold" style={{ color: 'var(--color-text)', letterSpacing: '-0.3px' }}>
+            Nexus
           </span>
         </Link>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
+      {/* Main */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-md"
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          className="w-full max-w-[420px]"
         >
-          <Card className="shadow-soft-lg">
-            <CardContent className="pt-8 pb-8 px-8">
-              {/* Title */}
-              <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                  Create an account
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                  Join your professional network
-                </p>
-              </div>
+          {/* Glassmorphism card */}
+          <div className="sp-card rounded-2xl p-8">
+            {/* Title */}
+            <div className="mb-8">
+              <h1
+                className="text-2xl font-bold mb-1.5"
+                style={{ color: 'var(--color-text)', letterSpacing: '-0.5px' }}
+              >
+                Join Nexus
+              </h1>
+              <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                Build your professional network
+              </p>
+            </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="First Name"
-                    placeholder="John"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    leftIcon={<UserIcon className="w-5 h-5" />}
-                    required
-                  />
-                  <Input
-                    label="Last Name"
-                    placeholder="Doe"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    leftIcon={<UserIcon className="w-5 h-5" />}
-                    required
-                  />
-                </div>
-
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="Email"
-                  type="email"
-                  placeholder="john.doe@example.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  leftIcon={<Mail className="w-5 h-5" />}
-                  error={error?.includes('email') ? error : undefined}
+                  label="First Name"
+                  placeholder="John"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  leftIcon={<UserIcon className="w-4 h-4" />}
                   required
                 />
-
-                <div className="relative">
-                  <Input
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Create a strong password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    leftIcon={<Lock className="w-5 h-5" />}
-                    rightIcon={
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="focus:outline-none"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-5 h-5 text-gray-400" />
-                        ) : (
-                          <Eye className="w-5 h-5 text-gray-400" />
-                        )}
-                      </button>
-                    }
-                    helperText="Must be at least 8 characters with uppercase, lowercase, number, and special character"
-                    error={error?.includes('password') ? error : undefined}
-                    required
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    className="w-full"
-                    isLoading={isLoading}
-                  >
-                    Agree & Join
-                  </Button>
-                </div>
-              </form>
-
-              {/* Divider */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-dark-700"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white dark:bg-dark-800 text-gray-500">
-                    or
-                  </span>
-                </div>
+                <Input
+                  label="Last Name"
+                  placeholder="Doe"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  leftIcon={<UserIcon className="w-4 h-4" />}
+                  required
+                />
               </div>
 
-              {/* Sign in link */}
-              <p className="text-center text-gray-600 dark:text-gray-400">
-                Already on Professional Network?{' '}
-                <Link
-                  to="/login"
-                  className="text-linkedin-600 hover:text-linkedin-700 dark:text-linkedin-400 font-medium"
+              <Input
+                label="Email address"
+                type="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                leftIcon={<Mail className="w-4 h-4" />}
+                error={error?.includes('email') ? error : undefined}
+                required
+              />
+
+              <Input
+                label="Password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Create a strong password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                leftIcon={<Lock className="w-4 h-4" />}
+                rightIcon={
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="focus:outline-none">
+                    {showPassword
+                      ? <EyeOff className="w-4 h-4" />
+                      : <Eye className="w-4 h-4" />}
+                  </button>
+                }
+                helperText="Min 8 chars · uppercase · lowercase · number · special"
+                error={error?.includes('password') ? error : undefined}
+                required
+              />
+
+              {error && !error.includes('email') && !error.includes('password') && (
+                <p className="text-xs font-medium text-red-400 flex items-center gap-1">
+                  <span>⚠</span> {error}
+                </p>
+              )}
+
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  isLoading={isLoading}
                 >
-                  Sign in
-                </Link>
+                  Create Account
+                </Button>
+              </div>
+
+              <p className="text-xs text-center" style={{ color: 'var(--color-dim)' }}>
+                By joining, you agree to our Terms of Service and Privacy Policy.
+                <br />
+                2FA setup is required after registration.
               </p>
-            </CardContent>
-          </Card>
+            </form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+              <span className="text-xs" style={{ color: 'var(--color-dim)' }}>or</span>
+              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+            </div>
+
+            <p className="text-center text-sm" style={{ color: 'var(--color-muted)' }}>
+              Already on Nexus?{' '}
+              <Link
+                to="/login"
+                className="font-semibold hover:underline"
+                style={{ color: '#9d94f0' }}
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
+
+          <p className="text-center text-xs mt-6" style={{ color: 'var(--color-dim)' }}>
+            &copy; 2026 Nexus · FCS-26 Security Project
+          </p>
         </motion.div>
       </main>
-
-      {/* Footer */}
-      <footer className="w-full py-6 px-6 text-center text-sm text-gray-500 dark:text-gray-400">
-        <p>&copy; 2026 Professional Network. FCS-26 Project.</p>
-      </footer>
     </div>
   );
 }
+
