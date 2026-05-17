@@ -220,7 +220,7 @@ export default function AdminPage() {
             {statsQ.isLoading ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-28 rounded-2xl animate-pulse bg-white/5" />
+                  <div key={i} className="h-28 rounded-2xl animate-pulse bg-shade" />
                 ))}
               </div>
             ) : stats ? (
@@ -271,7 +271,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {usersQ.data?.data?.data?.users?.map((u: any) => (
-                      <tr key={u._id} className="transition hover:bg-white/5"
+                      <tr key={u._id} className="transition hover-shade"
                         style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3">
                           <p className="font-medium" style={{ color: 'var(--color-text)' }}>{u.firstName} {u.lastName}</p>
@@ -345,7 +345,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {postsQ.data?.data?.data?.posts?.map((p: any) => (
-                      <tr key={p._id} className="transition hover:bg-white/5"
+                      <tr key={p._id} className="transition hover-shade"
                         style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3">
                           <p className="font-medium text-xs" style={{ color: 'var(--color-text)' }}>{p.author?.firstName} {p.author?.lastName}</p>
@@ -399,7 +399,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {jobsQ.data?.data?.data?.jobs?.map((j: any) => (
-                      <tr key={j._id} className="transition hover:bg-white/5"
+                      <tr key={j._id} className="transition hover-shade"
                         style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3 font-medium" style={{ color: 'var(--color-text)' }}>{j.title}</td>
                         <td className="px-4 py-3" style={{ color: 'var(--color-muted)' }}>{j.company}</td>
@@ -463,7 +463,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {auditQ.data?.data?.data?.logs?.map((log: any) => (
-                      <tr key={log._id} className="transition hover:bg-white/5"
+                      <tr key={log._id} className="transition hover-shade"
                         style={{ borderBottom: '1px solid var(--color-shade)' }}>
                         <td className="px-6 py-3">
                           <p className="font-mono text-xs" style={{ color: 'var(--color-text)' }}>{log.event}</p>

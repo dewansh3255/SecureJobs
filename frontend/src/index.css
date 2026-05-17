@@ -347,6 +347,12 @@
 @layer utilities {
   .text-truncate { @apply overflow-hidden text-ellipsis whitespace-nowrap; }
 
+  /* Theme-aware shade utilities — replaces bg-white/5, hover:bg-white/5 patterns */
+  .bg-shade   { background: var(--color-shade) !important; }
+  .bg-shade-md { background: var(--color-shade-md) !important; }
+  .hover-shade:hover { background: var(--color-shade) !important; }
+  .hover-shade-md:hover { background: var(--color-shade-md) !important; }
+
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -373,9 +379,9 @@
     background-clip: text;
   }
   .glass {
-    background: rgba(26,26,46,0.65);
+    background: var(--color-card);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid var(--color-border);
   }
 }

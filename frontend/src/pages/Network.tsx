@@ -76,10 +76,10 @@ function PersonCard({ person, onConnect, connecting }: {
 function SkeletonCard() {
   return (
     <div className="sp-card rounded-2xl p-4 flex flex-col items-center gap-3 animate-pulse">
-      <div className="w-16 h-16 rounded-xl bg-white/5" />
-      <div className="w-24 h-3 bg-white/5 rounded" />
-      <div className="w-32 h-2 bg-white/5 rounded" />
-      <div className="w-full h-8 bg-white/5 rounded-xl" />
+      <div className="w-16 h-16 rounded-xl bg-shade" />
+      <div className="w-24 h-3 bg-shade rounded" />
+      <div className="w-32 h-2 bg-shade rounded" />
+      <div className="w-full h-8 bg-shade rounded-xl" />
     </div>
   );
 }
@@ -214,10 +214,10 @@ export default function NetworkPage() {
             <div className="space-y-3">
               {[1, 2].map(i => (
                 <div key={i} className="sp-card rounded-2xl p-4 flex items-center gap-3 animate-pulse">
-                  <div className="w-12 h-12 rounded-xl bg-white/5 shrink-0" />
+                  <div className="w-12 h-12 rounded-xl bg-shade shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-white/5 rounded w-1/3" />
-                    <div className="h-3 bg-white/5 rounded w-1/2" />
+                    <div className="h-4 bg-shade rounded w-1/3" />
+                    <div className="h-3 bg-shade rounded w-1/2" />
                   </div>
                 </div>
               ))}

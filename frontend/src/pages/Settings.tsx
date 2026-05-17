@@ -124,7 +124,7 @@ function TwoFactorSection({ enabled, onRefresh }: { enabled: boolean; onRefresh:
         <div className="flex items-center gap-2">
           <code className="flex-1 text-xs px-3 py-2 rounded-xl font-mono break-all"
             style={{ background: 'var(--color-bg)', color: 'var(--color-muted)', border: '1px solid var(--color-shade-md)' }}>{secret}</code>
-          <button onClick={copySecret} title="Copy secret" className="p-2 rounded-lg hover:bg-white/5 transition">
+          <button onClick={copySecret} title="Copy secret" className="p-2 rounded-lg hover-shade transition">
             {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
           </button>
         </div>

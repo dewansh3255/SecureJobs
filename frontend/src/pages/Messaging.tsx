@@ -50,10 +50,10 @@ function fmtMsgDate(d: string) {
 function ConvSkeleton() {
   return (
     <div className="flex items-center gap-3 p-3 animate-pulse">
-      <div className="w-10 h-10 rounded-xl bg-white/5 shrink-0" />
+      <div className="w-10 h-10 rounded-xl bg-shade shrink-0" />
       <div className="flex-1 space-y-1.5">
-        <div className="h-3 bg-white/5 rounded w-2/3" />
-        <div className="h-2 bg-white/5 rounded w-1/2" />
+        <div className="h-3 bg-shade rounded w-2/3" />
+        <div className="h-2 bg-shade rounded w-1/2" />
       </div>
     </div>
   );
@@ -101,7 +101,7 @@ function NewConversationPanel({ onCreated }: { onCreated: (convId: string) => vo
               key={u._id}
               onClick={() => startConvMut.mutate(u._id)}
               disabled={startConvMut.isPending}
-              className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition text-left"
+              className="w-full flex items-center gap-3 p-2 rounded-xl hover-shade transition text-left"
             >
               <Avatar name={`${u.firstName} ${u.lastName}`} src={u.profilePicture} size="sm" />
               <div>
@@ -355,7 +355,7 @@ export default function MessagingPage() {
                 style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
                 <button
                   onClick={() => setMobileShowThread(false)}
-                  className="lg:hidden p-1.5 rounded-xl hover:bg-white/5 transition"
+                  className="lg:hidden p-1.5 rounded-xl hover-shade transition"
                 >
                   <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
                 </button>

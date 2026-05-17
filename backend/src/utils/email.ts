@@ -14,33 +14,50 @@ interface EmailOptions {
   text?: string;
 }
 
-const createTransporter = () => {
-  if (config.server.isProduction) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+// Cache auto-created Ethereal test account so we only create it once
+let devTransporter: nodemailer.Transporter | null = null;
+
+async function getDevTransporter(): Promise<nodemailer.Transporter> {
+  if (devTransporter) return devTransporter;
+
+  // If explicit Ethereal creds are provided in env, use them
+  if (process.env.ETHEREAL_USER && process.env.ETHEREAL_PASS) {
+    devTransporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      auth: { user: process.env.ETHEREAL_USER, pass: process.env.ETHEREAL_PASS },
     });
+    return devTransporter;
   }
 
-  // Development: use Ethereal (catch-all fake SMTP)
-  return nodemailer.createTransport({
+  // Auto-create a fresh Ethereal test account (no sign-up needed)
+  const testAccount = await nodemailer.createTestAccount();
+  logger.info(`Dev email — Ethereal test account: ${testAccount.user}`);
+  devTransporter = nodemailer.createTransport({
     host: 'smtp.ethereal.email',
     port: 587,
+    auth: { user: testAccount.user, pass: testAccount.pass },
+  });
+  return devTransporter;
+}
+
+const getProdTransporter = () =>
+  nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
     auth: {
-      user: process.env.ETHEREAL_USER || 'test@ethereal.email',
-      pass: process.env.ETHEREAL_PASS || 'testpass',
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
   });
-};
 
 export const sendEmail = async (options: EmailOptions): Promise<void> => {
   try {
-    const transporter = createTransporter();
+    const transporter = config.server.isProduction
+      ? getProdTransporter()
+      : await getDevTransporter();
+
     const info = await transporter.sendMail({
       from: `"${process.env.FROM_NAME || 'ProNet'}" <${process.env.FROM_EMAIL || 'noreply@pronet.dev'}>`,
       to: options.to,

@@ -72,6 +72,16 @@ function getCookie(name: string): string | null {
   return null;
 }
 
+// Helper: ensure CSRF cookie exists before state-changing requests on unauthenticated pages
+async function ensureCsrf(): Promise<void> {
+  const v = `; ${document.cookie}`;
+  const parts = v.split('; XSRF-TOKEN=');
+  const hasCsrf = parts.length === 2 && !!parts.pop()?.split(';').shift();
+  if (!hasCsrf) {
+    await api.get('/csrf-token');
+  }
+}
+
 // API methods
 export const apiService = {
   // Auth
@@ -83,9 +93,14 @@ export const apiService = {
     logout: () => api.post('/auth/logout'),
     me: () => api.get('/auth/me'),
     refresh: () => api.post('/auth/refresh'),
-    forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
-    resetPassword: (token: string, password: string) =>
-      api.post('/auth/reset-password', { token, password }),
+    forgotPassword: async (email: string) => {
+      await ensureCsrf();
+      return api.post('/auth/forgot-password', { email });
+    },
+    resetPassword: async (token: string, password: string) => {
+      await ensureCsrf();
+      return api.post('/auth/reset-password', { token, password });
+    },
     // 2FA
     twoFASetup: (force = false) => api.get(`/auth/2fa/setup${force ? '?force=true' : ''}`),
     twoFAEnable: (code: string) => api.post('/auth/2fa/enable', { code }),

@@ -672,7 +672,7 @@ function SuggestionsPanel() {
             <p className="text-xs" style={{ color: 'var(--color-dim)' }}>No suggestions yet — build your network!</p>
           ) : (
             suggestions.map(s => (
-              <a key={s._id} href={`/profile/${s._id}`} className="flex items-center gap-3 p-1 rounded-xl hover:bg-white/5 transition">
+              <a key={s._id} href={`/profile/${s._id}`} className="flex items-center gap-3 p-1 rounded-xl hover-shade transition">
                 <Avatar name={`${s.firstName} ${s.lastName}`} src={s.profilePicture} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{s.firstName} {s.lastName}</p>

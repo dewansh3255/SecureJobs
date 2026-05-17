@@ -41,16 +41,16 @@ function JobSkeleton() {
   return (
     <div className="sp-card rounded-2xl p-4 space-y-3 animate-pulse">
       <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-xl bg-white/5" />
+        <div className="w-12 h-12 rounded-xl bg-shade" />
         <div className="flex-1 space-y-2">
-          <div className="h-4 bg-white/5 rounded w-2/3" />
-          <div className="h-3 bg-white/5 rounded w-1/2" />
+          <div className="h-4 bg-shade rounded w-2/3" />
+          <div className="h-3 bg-shade rounded w-1/2" />
         </div>
       </div>
-      <div className="h-3 bg-white/5 rounded w-3/4" />
+      <div className="h-3 bg-shade rounded w-3/4" />
       <div className="flex gap-2">
-        <div className="h-5 w-16 bg-white/5 rounded-full" />
-        <div className="h-5 w-20 bg-white/5 rounded-full" />
+        <div className="h-5 w-16 bg-shade rounded-full" />
+        <div className="h-5 w-20 bg-shade rounded-full" />
       </div>
     </div>
   );
@@ -98,7 +98,7 @@ function ApplyModal({ job, onClose }: { job: Job; onClose: () => void }) {
             <h2 className="font-bold" style={{ color: 'var(--color-text)' }}>Apply for {job.title}</h2>
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{job.company}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl transition hover:bg-white/5">
+          <button onClick={onClose} className="p-2 rounded-xl transition hover-shade">
             <X className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
           </button>
         </div>
@@ -289,7 +289,7 @@ export default function JobsPage() {
                       </p>
                     </div>
                     <button onClick={() => setSelectedJob(null)}
-                      className="p-1.5 rounded-xl hover:bg-white/5 transition lg:hidden"
+                      className="p-1.5 rounded-xl hover-shade transition lg:hidden"
                       style={{ color: 'var(--color-muted)' }}>
                       <X className="w-5 h-5" />
                     </button>
@@ -365,7 +365,7 @@ export default function JobsPage() {
                     <div className="space-y-3">
                       {recommendedJobs.map(job => (
                         <button key={job._id} onClick={() => setSelectedJob(job)}
-                          className="w-full text-left p-3 rounded-xl transition hover:bg-white/5 sp-card-lift"
+                          className="w-full text-left p-3 rounded-xl transition hover-shade sp-card-lift"
                           style={{ border: '1px solid var(--color-shade)' }}>
                           <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{job.title}</p>
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>{job.company} · {job.location}</p>
