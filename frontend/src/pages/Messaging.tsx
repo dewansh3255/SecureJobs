@@ -366,11 +366,19 @@ export default function MessagingPage() {
                       <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>{otherPerson.firstName} {otherPerson.lastName}</p>
                       {otherPerson.headline && <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>{otherPerson.headline}</p>}
                     </div>
-                    {recipientPublicKey && (
+                    {recipientPublicKey ? (
                       <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
-                        style={{ background: 'rgba(111,224,160,0.1)', color: '#6fe0a0' }}>
+                        title="Messages are end-to-end encrypted — only you and the recipient can read them"
+                        style={{ background: 'rgba(111,224,160,0.1)', color: '#6fe0a0', cursor: 'help' }}>
                         <Lock className="w-3 h-3" />
                         <span className="hidden sm:inline">E2E encrypted</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+                        title="Encryption unavailable — recipient hasn't set up their encryption keys yet"
+                        style={{ background: 'rgba(224,175,111,0.1)', color: '#e0af6f', cursor: 'help' }}>
+                        <Lock className="w-3 h-3 opacity-50" />
+                        <span className="hidden sm:inline">Unencrypted</span>
                       </div>
                     )}
                   </>
