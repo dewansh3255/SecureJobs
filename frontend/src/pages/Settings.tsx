@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
   Shield,
@@ -17,6 +17,8 @@ import {
   CheckCircle2,
   Briefcase,
   GraduationCap,
+  KeySquare,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@stores/authStore';
 import { useTheme } from '@stores/themeStore';
@@ -25,6 +27,7 @@ import { Input } from '@components/ui/Input';
 import { Badge } from '@components/ui/Badge';
 import { toast } from 'sonner';
 import api, { apiService } from '@services/api';
+import VirtualKeypad from '@components/auth/VirtualKeypad';
 
 const settingsSections = [
   { id: 'account', name: 'Account', icon: User },
@@ -225,11 +228,95 @@ function TwoFactorSection({ enabled, onRefresh }: { enabled: boolean; onRefresh:
   );
 }
 
+/* ── TOTP gate modal for recruiter upgrade ──────────────────── */
+function RecruiterTOTPModal({
+  onConfirm,
+  onClose,
+  loading,
+}: {
+  onConfirm: (code: string) => void;
+  onClose: () => void;
+  loading: boolean;
+}) {
+  const [code, setCode] = useState('');
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+        className="sp-card rounded-2xl w-full max-w-sm overflow-hidden"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: 'rgba(111,205,224,0.15)', border: '1px solid rgba(111,205,224,0.3)' }}>
+              <KeySquare className="w-4 h-4" style={{ color: '#6fcde0' }} />
+            </div>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Verify Identity</p>
+              <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Required to switch to Recruiter</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover-shade transition">
+            <X className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-5">
+          <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+            For security, upgrading your account to <strong style={{ color: 'var(--color-text)' }}>Recruiter</strong> requires
+            your current TOTP code from your authenticator app.
+          </p>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--color-muted)' }}>
+              Enter 6-digit code
+            </p>
+            {/* Display */}
+            <div className="flex justify-center gap-2 mb-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i}
+                  className="w-10 h-12 rounded-xl flex items-center justify-center text-lg font-bold transition"
+                  style={{
+                    background: 'var(--color-bg)',
+                    border: `2px solid ${code[i] ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                    color: 'var(--color-text)',
+                  }}>
+                  {code[i] || ''}
+                </div>
+              ))}
+            </div>
+            <VirtualKeypad value={code} onChange={setCode} maxLength={6} />
+          </div>
+
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={code.length !== 6 || loading}
+            isLoading={loading}
+            onClick={() => onConfirm(code)}
+          >
+            Confirm &amp; Switch to Recruiter
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState('account');
   const [switchingAccountType, setSwitchingAccountType] = useState(false);
+  const [showRecruiterTOTP, setShowRecruiterTOTP] = useState(false);
   const [settings, setSettings] = useState({
     emailNotifications: user?.settings?.emailNotifications ?? true,
     pushNotifications: true,
@@ -238,13 +325,24 @@ export default function SettingsPage() {
     darkMode: theme === 'dark',
   });
 
-  const handleAccountTypeSwitch = async (newType: 'candidate' | 'recruiter') => {
+  const handleAccountTypeSwitch = (newType: 'candidate' | 'recruiter') => {
     if (newType === user?.accountType) return;
+    if (newType === 'recruiter') {
+      // Always require TOTP for recruiter upgrade
+      setShowRecruiterTOTP(true);
+      return;
+    }
+    // Downgrade to candidate — no TOTP needed
+    doSwitch('candidate');
+  };
+
+  const doSwitch = async (newType: 'candidate' | 'recruiter', totpCode?: string) => {
     setSwitchingAccountType(true);
     try {
-      await apiService.users.switchAccountType(newType);
+      await apiService.users.switchAccountType(newType, totpCode);
       await refreshUser();
       toast.success(`Switched to ${newType === 'recruiter' ? 'Recruiter' : 'Candidate'} mode!`);
+      setShowRecruiterTOTP(false);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'Failed to switch account type');
     } finally {
@@ -253,6 +351,7 @@ export default function SettingsPage() {
   };
 
   return (
+    <>
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>Settings</h1>
@@ -550,6 +649,18 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+
+    {/* TOTP verification modal for recruiter upgrade */}
+    <AnimatePresence>
+      {showRecruiterTOTP && (
+        <RecruiterTOTPModal
+          onConfirm={(code) => doSwitch('recruiter', code)}
+          onClose={() => setShowRecruiterTOTP(false)}
+          loading={switchingAccountType}
+        />
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 

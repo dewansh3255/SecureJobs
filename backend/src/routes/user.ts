@@ -17,6 +17,7 @@ import { protect, optionalAuth } from '../middleware/auth';
 import { uploadRateLimiter, searchRateLimiter } from '../middleware/security';
 import User from '../models/User';
 import logger, { logSecurityEvent } from '../utils/logger';
+import { verifyTOTP } from '../utils/totp';
 
 const router = Router();
 
@@ -118,12 +119,31 @@ router.put('/me', protect, async (req: Request, res: Response) => {
 
 // ──────────────────────────────────────────────
 // PATCH /users/me/account-type — switch candidate ↔ recruiter
+// Switching TO recruiter requires a valid TOTP code.
 // ──────────────────────────────────────────────
 router.patch('/me/account-type', protect, async (req: Request, res: Response) => {
   try {
-    const { accountType } = req.body;
+    const { accountType, totpCode } = req.body;
     if (!['candidate', 'recruiter'].includes(accountType)) {
       return res.status(400).json({ success: false, message: 'accountType must be candidate or recruiter' });
+    }
+
+    // Require TOTP verification when escalating to recruiter
+    if (accountType === 'recruiter') {
+      const fullUser = await User.findById(req.user!.id).select('+twoFactorSecret');
+      if (!fullUser) return res.status(404).json({ success: false, message: 'User not found' });
+
+      if (!fullUser.twoFactorEnabled || !fullUser.twoFactorSecret) {
+        return res.status(403).json({
+          success: false,
+          message: 'You must have 2FA enabled to switch to Recruiter mode.',
+        });
+      }
+
+      if (!totpCode || !verifyTOTP(String(totpCode), fullUser.twoFactorSecret)) {
+        logSecurityEvent('recruiter_switch_invalid_totp', { userId: req.user!.id }, 'warn', req as any);
+        return res.status(401).json({ success: false, message: 'Invalid or expired TOTP code.' });
+      }
     }
 
     const user = await User.findByIdAndUpdate(
