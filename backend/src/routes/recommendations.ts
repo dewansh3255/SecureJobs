@@ -124,41 +124,68 @@ router.get('/jobs', async (req: Request, res: Response) => {
     const limit = Math.min(20, parseInt(String(req.query.limit || '10'), 10) || 10);
 
     const myProfile = await User.findById(me.id)
-      .select('skills industry location')
+      .select('skills industry location resume.parsedSkills resume.parsedTitles')
       .lean();
 
     if (!myProfile) { res.status(404).json({ success: false, message: 'User not found' }); return; }
 
-    const mySkills: string[] = myProfile.skills ?? [];
+    // Merge profile skills with parsed resume skills (deduplicated, normalised to lowercase)
+    const profileSkills: string[] = myProfile.skills ?? [];
+    const resumeParsedSkills: string[] = (myProfile.resume as any)?.parsedSkills ?? [];
+    const resumeParsedTitles: string[] = (myProfile.resume as any)?.parsedTitles ?? [];
+    const hasResumeData = resumeParsedSkills.length > 0 || resumeParsedTitles.length > 0;
+
+    const allSkillsSet = new Set([
+      ...profileSkills.map((s) => s.toLowerCase()),
+      ...resumeParsedSkills.map((s) => s.toLowerCase()),
+    ]);
+    const mySkills = Array.from(allSkillsSet);
     const myIndustry: string = (myProfile as any).industry ?? '';
     const myLocation: string = (myProfile as any).location ?? '';
 
     // Fetch active jobs (cap at 200 for scoring)
     const jobs = await Job.find({ status: 'active' })
-      .select('title company location industry requiredSkills type remote experienceLevel salary postedBy createdAt')
-      .populate('postedBy', 'firstName lastName profilePicture')
+      .select('title company location industry skills type remote experienceLevel salary employer createdAt')
+      .populate('employer', 'firstName lastName profilePicture')
       .limit(200)
       .lean();
 
     // Score each job
-    type ScoredJob = typeof jobs[0] & { score: number; matchedSkills: string[] };
+    type ScoredJob = typeof jobs[0] & { score: number; matchedSkills: string[]; matchScore?: number };
     const scored: ScoredJob[] = jobs.map((job) => {
-      const reqSkills: string[] = (job as any).requiredSkills ?? [];
-      const matchedSkills = reqSkills.filter((s: string) =>
-        mySkills.some((ms) => ms.toLowerCase() === s.toLowerCase())
+      // Job.skills is the canonical skills field on the Job model
+      const jobSkills: string[] = (job.skills ?? []).map((s: string) => s.toLowerCase());
+
+      // Skill overlap between user (profile + resume) and job
+      const matchedSkills = jobSkills.filter((s: string) =>
+        mySkills.some((ms) => ms === s || ms.includes(s) || s.includes(ms))
       );
+
+      // Title affinity boost — if a resume title keyword appears in the job title
+      const titleBonus = resumeParsedTitles.some((t) =>
+        job.title?.toLowerCase().includes(t)
+      ) ? 2 : 0;
+
       const industryBonus = (job as any).industry && (job as any).industry === myIndustry ? 2 : 0;
       const locationBonus =
         myLocation && (job as any).location?.toLowerCase().includes(myLocation.toLowerCase()) ? 1 : 0;
       const remoteBonus = (job as any).remote ? 0.5 : 0;
-      const score = matchedSkills.length * 3 + industryBonus + locationBonus + remoteBonus;
-      return { ...job, score, matchedSkills };
+
+      const score = matchedSkills.length * 3 + titleBonus + industryBonus + locationBonus + remoteBonus;
+
+      // matchScore: fraction of job skills covered by user skills (0–1), only when resume data available
+      const matchScore = hasResumeData && jobSkills.length > 0
+        ? Math.round((matchedSkills.length / jobSkills.length) * 100)
+        : undefined;
+
+      return { ...job, score, matchedSkills, ...(matchScore !== undefined ? { matchScore } : {}) };
     });
 
     scored.sort((a, b) => b.score - a.score);
 
     res.json({
       success: true,
+      resumeEnhanced: hasResumeData,
       data: scored.slice(0, limit).map(({ score: _s, ...rest }) => rest),
     });
   } catch (err) {

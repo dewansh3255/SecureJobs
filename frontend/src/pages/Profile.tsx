@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import {
   Pencil, Plus, X, Camera, MapPin, Globe,
   GraduationCap, UserCheck, UserPlus, Loader2,
-  Building2, Calendar
+  Building2, Calendar, FileText, Upload, Trash2, Download, Lock
 } from 'lucide-react';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
@@ -56,6 +56,14 @@ interface ProfileData {
   following: number;
   isConnected?: boolean;
   isPending?: boolean;
+  resume?: {
+    originalName: string;
+    mimeType: string;
+    uploadedAt: string;
+    parsedSkills?: string[];
+    parsedTitles?: string[];
+    parsedEducation?: string[];
+  };
 }
 
 /* ─── Skeleton ─── */
@@ -319,6 +327,48 @@ export default function ProfilePage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
   });
 
+  /* Resume mutations */
+  const resumeInputRef = useRef<HTMLInputElement>(null);
+  const [showResumeTotpModal, setShowResumeTotpModal] = useState(false);
+  const [resumeTotpCode, setResumeTotpCode] = useState('');
+  const [resumeTotpLoading, setResumeTotpLoading] = useState(false);
+
+  const handleResumeDownload = async () => {
+    if (!resumeTotpCode.trim() || resumeTotpCode.length !== 6) {
+      toast.error('Enter your 6-digit TOTP code');
+      return;
+    }
+    setResumeTotpLoading(true);
+    try {
+      // Build download URL with TOTP code, open in new tab to trigger browser download
+      const url = `/api/users/me/resume?totp=${encodeURIComponent(resumeTotpCode.trim())}`;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = profile?.resume?.originalName ?? 'resume';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setShowResumeTotpModal(false);
+      setResumeTotpCode('');
+    } finally {
+      setResumeTotpLoading(false);
+    }
+  };
+
+  const uploadResumeMut = useMutation({
+    mutationFn: (file: File) => {
+      const fd = new FormData(); fd.append('resume', file);
+      return apiService.users.uploadResume(fd);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Resume uploaded and encrypted'); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Upload failed'),
+  });
+  const deleteResumeMut = useMutation({
+    mutationFn: () => apiService.users.deleteResume(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Resume deleted'); },
+    onError: () => toast.error('Delete failed'),
+  });
+
   if (isLoading) return <ProfileSkeleton />;
   if (isError || !profile) return (
     <div className="sp-card rounded-2xl p-10 text-center">
@@ -544,11 +594,184 @@ export default function ProfilePage() {
         )}
       </Section>
 
+      {/* Resume — own profile only */}
+      {isOwnProfile && (
+        <Section title="Resume">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'var(--color-bg)' }}>
+              <FileText className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
+            </div>
+            <div className="flex-1">
+              {profile.resume ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
+                        {profile.resume.originalName}
+                      </p>
+                      <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
+                        <Lock className="w-3 h-3" />
+                        Encrypted · Uploaded {new Date(profile.resume.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowResumeTotpModal(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition hover-shade"
+                        style={{ color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                      >
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </button>
+                      <label
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition hover-shade"
+                        style={{ color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Replace
+                        <input
+                          ref={resumeInputRef}
+                          type="file"
+                          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                          className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeMut.mutate(f); }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => deleteResumeMut.mutate()}
+                        disabled={deleteResumeMut.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition"
+                        style={{ color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {/* Detected skills from resume parsing */}
+                  {profile.resume.parsedSkills && profile.resume.parsedSkills.length > 0 && (
+                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                      <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-dim)' }}>
+                        Detected Skills
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {profile.resume.parsedSkills.map((skill) => (
+                          <Badge key={skill} variant="primary" size="sm">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Detected titles from resume parsing */}
+                  {profile.resume.parsedTitles && profile.resume.parsedTitles.length > 0 && (
+                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                      <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-dim)' }}>
+                        Detected Roles
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {profile.resume.parsedTitles.map((title) => (
+                          <Badge key={title} variant="info" size="sm">
+                            {title}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>
+                    No resume uploaded. PDF and DOCX files are accepted (max 10MB). Your resume is encrypted at rest.
+                  </p>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      leftIcon={uploadResumeMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                      onClick={() => resumeInputRef.current?.click()}
+                      disabled={uploadResumeMut.isPending}
+                    >
+                      {uploadResumeMut.isPending ? 'Uploading…' : 'Upload Resume'}
+                    </Button>
+                    <input
+                      ref={resumeInputRef}
+                      type="file"
+                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeMut.mutate(f); }}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+        </Section>
+      )}
+
       {/* Modals */}
       <AnimatePresence>
         {modal?.type === 'basic' && <EditBasicModal profile={profile} onClose={() => setModal(null)} />}
         {modal?.type === 'exp' && <ExperienceModal item={modal.item} onClose={() => setModal(null)} />}
         {modal?.type === 'edu' && <EducationModal item={modal.item} onClose={() => setModal(null)} />}
+      </AnimatePresence>
+
+      {/* Resume TOTP Download Modal */}
+      <AnimatePresence>
+        {showResumeTotpModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+              style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
+                  <h3 className="font-bold" style={{ color: 'var(--color-text)' }}>Verify Identity</h3>
+                </div>
+                <button onClick={() => { setShowResumeTotpModal(false); setResumeTotpCode(''); }}
+                  className="p-1 rounded-lg hover-shade">
+                  <X className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
+                </button>
+              </div>
+              <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>
+                Enter your 6-digit authenticator code to download your resume.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                placeholder="000000"
+                value={resumeTotpCode}
+                onChange={e => setResumeTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onKeyDown={e => e.key === 'Enter' && handleResumeDownload()}
+                autoFocus
+                className="w-full px-4 py-3 rounded-xl text-center text-2xl font-mono tracking-widest mb-4"
+                style={{
+                  background: 'var(--color-input-bg)', color: 'var(--color-text)',
+                  border: '1px solid var(--color-border)', outline: 'none',
+                }}
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setShowResumeTotpModal(false); setResumeTotpCode(''); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold sp-hover"
+                  style={{ color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>
+                  Cancel
+                </button>
+                <button onClick={handleResumeDownload} disabled={resumeTotpCode.length !== 6 || resumeTotpLoading}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition"
+                  style={{
+                    background: resumeTotpCode.length === 6 ? 'var(--color-accent)' : 'var(--color-shade)',
+                    color: resumeTotpCode.length === 6 ? 'white' : 'var(--color-dim)',
+                  }}>
+                  {resumeTotpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

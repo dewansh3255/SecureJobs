@@ -60,12 +60,40 @@ export interface IUser extends Document {
     profileVisibility: 'public' | 'connections' | 'private';
     darkMode: boolean;
   };
+  privacySettings: {
+    email: 'public' | 'connections' | 'private';
+    phone: 'public' | 'connections' | 'private';
+    headline: 'public' | 'connections' | 'private';
+    about: 'public' | 'connections' | 'private';
+    experience: 'public' | 'connections' | 'private';
+    education: 'public' | 'connections' | 'private';
+    skills: 'public' | 'connections' | 'private';
+    connections: 'public' | 'connections' | 'private';
+    resume: 'public' | 'connections' | 'private';
+  };
   followers: mongoose.Types.ObjectId[];
   following: mongoose.Types.ObjectId[];
   connections: mongoose.Types.ObjectId[];
   blockedUsers: mongoose.Types.ObjectId[];
   /** ECDH P-256 public key (JWK JSON string) for E2E message encryption */
   publicKey?: string;
+  /** Encrypted resume — PDF or DOCX, AES-256-GCM encrypted at rest */
+  resume?: {
+    encryptedPath: string;   // path to encrypted file on disk
+    originalName: string;    // original filename shown to user
+    mimeType: string;        // application/pdf or application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    iv: string;              // AES-GCM IV (hex)
+    authTag: string;         // AES-GCM auth tag (hex)
+    uploadedAt: Date;
+    /** Skills detected by resume parser (e.g. ['react', 'typescript']) */
+    parsedSkills: string[];
+    /** Job titles detected by resume parser (e.g. ['software engineer']) */
+    parsedTitles: string[];
+    /** Education keywords detected by resume parser (e.g. ['b.tech', 'computer science']) */
+    parsedEducation: string[];
+    /** Raw extracted text — excluded from default API responses */
+    resumeText?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -269,14 +297,50 @@ const userSchema = new Schema<IUser>(
         ref: 'User',
       },
     ],
+    privacySettings: {
+      email:       { type: String, enum: ['public', 'connections', 'private'], default: 'private' },
+      phone:       { type: String, enum: ['public', 'connections', 'private'], default: 'private' },
+      headline:    { type: String, enum: ['public', 'connections', 'private'], default: 'public' },
+      about:       { type: String, enum: ['public', 'connections', 'private'], default: 'public' },
+      experience:  { type: String, enum: ['public', 'connections', 'private'], default: 'public' },
+      education:   { type: String, enum: ['public', 'connections', 'private'], default: 'public' },
+      skills:      { type: String, enum: ['public', 'connections', 'private'], default: 'public' },
+      connections: { type: String, enum: ['public', 'connections', 'private'], default: 'connections' },
+      resume:      { type: String, enum: ['public', 'connections', 'private'], default: 'private' },
+    },
     publicKey: {
       type: String,
       select: false, // not returned by default — must be explicitly requested
     },
+    resume: {
+      encryptedPath: { type: String },
+      originalName: { type: String },
+      mimeType: { type: String },
+      iv: { type: String },
+      authTag: { type: String },
+      uploadedAt: { type: Date },
+      parsedSkills: { type: [String], default: [] },
+      parsedTitles: { type: [String], default: [] },
+      parsedEducation: { type: [String], default: [] },
+      resumeText: { type: String, select: false },
+    },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform(_doc, ret) {
+        // Strip internal encryption fields and raw text from resume before serialising to JSON
+        if (ret.resume) {
+          const r = ret.resume as Record<string, unknown>;
+          delete r['encryptedPath'];
+          delete r['iv'];
+          delete r['authTag'];
+          delete r['resumeText'];
+        }
+        return ret;
+      },
+    },
     toObject: { virtuals: true },
   }
 );
