@@ -1,19 +1,12 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env tsx
 /**
  * CLI script to create or promote an admin user.
  * 
- * Usage:
- *   # Create new admin:
- *   npx ts-node src/scripts/createAdmin.ts create <email> <password> <firstName> <lastName>
- * 
- *   # Promote existing user to admin:
- *   npx ts-node src/scripts/createAdmin.ts promote <email>
- * 
- *   # Demote admin to regular user:
- *   npx ts-node src/scripts/createAdmin.ts demote <email>
- * 
- * Run from inside the backend container:
- *   docker compose exec backend npx ts-node src/scripts/createAdmin.ts create admin@example.com SecurePass123! Admin User
+ * Usage (run inside backend container):
+ *   docker compose exec backend npx tsx src/scripts/createAdmin.ts create admin@example.com SecurePass123! Admin User
+ *   docker compose exec backend npx tsx src/scripts/createAdmin.ts promote existing@user.com
+ *   docker compose exec backend npx tsx src/scripts/createAdmin.ts demote admin@user.com
+ *   docker compose exec backend npx tsx src/scripts/createAdmin.ts list
  */
 
 import mongoose from 'mongoose';
@@ -22,7 +15,7 @@ import path from 'path';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const MONGO_URI = process.env.MONGO_URI ?? 'mongodb://localhost:27017/nexus';
+const MONGO_URI = process.env.MONGODB_URI ?? process.env.MONGO_URI ?? 'mongodb://localhost:27017/nexus';
 
 async function main() {
   const [,, cmd, ...args] = process.argv;
