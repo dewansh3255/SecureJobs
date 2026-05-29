@@ -1,10 +1,10 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Bell, UserPlus, Heart, MessageCircle, Briefcase, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiService } from '@services/api';
-import { Card } from '@components/ui/Card';
 import { Button } from '@components/ui/Button';
 import { Avatar } from '@components/ui/Avatar';
 
@@ -18,22 +18,28 @@ interface Notification {
   createdAt: string;
 }
 
-const TYPE_ICON: Record<string, React.ReactNode> = {
-  connection_request: <UserPlus className="w-4 h-4" style={{ color: '#9d94f0' }} />,
-  connection_accepted: <UserPlus className="w-4 h-4 text-emerald-400" />,
-  post_reaction: <Heart className="w-4 h-4" style={{ color: '#e06fbc' }} />,
-  comment: <MessageCircle className="w-4 h-4 text-sky-400" />,
-  job_application: <Briefcase className="w-4 h-4" style={{ color: '#9d94f0' }} />,
-  message: <MessageCircle className="w-4 h-4 text-sky-400" />,
+const TYPE_CONFIG: Record<string, { icon: React.ReactNode; bg: string }> = {
+  connection_request: { icon: <UserPlus className="w-2.5 h-2.5 text-white" />, bg: '#0A66C2' },
+  connection_accepted: { icon: <UserPlus className="w-2.5 h-2.5 text-white" />, bg: '#0A66C2' },
+  post_reaction: { icon: <Heart className="w-2.5 h-2.5 text-white" />, bg: '#e06fbc' },
+  comment: { icon: <MessageCircle className="w-2.5 h-2.5 text-white" />, bg: '#0A66C2' },
+  job_application: { icon: <Briefcase className="w-2.5 h-2.5 text-white" />, bg: '#6b7280' },
+  message: { icon: <MessageCircle className="w-2.5 h-2.5 text-white" />, bg: '#0A66C2' },
 };
+
+const TABS = ['All', 'My network', 'Jobs', 'Mentions'] as const;
+type Tab = typeof TABS[number];
 
 function SkeletonRow() {
   return (
-    <div className="flex items-center gap-3 p-4 animate-pulse">
-      <div className="w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'var(--color-shade)' }} />
+    <div
+      className="flex items-center gap-3 px-4 py-3 animate-pulse"
+      style={{ borderBottom: '1px solid var(--color-border)' }}
+    >
+      <div className="w-10 h-10 rounded-full flex-shrink-0" style={{ background: 'var(--color-shade)' }} />
       <div className="flex-1 space-y-2">
-        <div className="h-3 rounded-lg w-3/4" style={{ background: 'var(--color-shade)' }} />
-        <div className="h-2 rounded-lg w-1/3" style={{ background: 'var(--color-shade)' }} />
+        <div className="h-3.5 rounded-lg w-3/4" style={{ background: 'var(--color-shade)' }} />
+        <div className="h-2.5 rounded-lg w-1/4" style={{ background: 'var(--color-shade)' }} />
       </div>
     </div>
   );
@@ -41,6 +47,7 @@ function SkeletonRow() {
 
 export default function NotificationsPage() {
   const qc = useQueryClient();
+  const [activeTab, setActiveTab] = useState<Tab>('All');
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['notifications'],
@@ -66,19 +73,12 @@ export default function NotificationsPage() {
   const unread = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="max-w-2xl mx-auto pb-10 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)', letterSpacing: '-0.3px' }}>Notifications</h1>
-          {unread > 0 && (
-            <span
-              className="text-xs font-bold rounded-full px-2 py-0.5"
-              style={{ background: 'rgba(224,111,188,0.2)', color: '#e06fbc', border: '1px solid rgba(224,111,188,0.3)' }}
-            >
-              {unread} new
-            </span>
-          )}
-        </div>
+    <div className="max-w-[860px] mx-auto px-4 pt-6 pb-20">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-xl font-bold" style={{ color: 'var(--color-text)', letterSpacing: '-0.3px' }}>
+          Notifications
+        </h1>
         {unread > 0 && (
           <Button
             variant="ghost"
@@ -87,14 +87,55 @@ export default function NotificationsPage() {
             onClick={() => markAllMutation.mutate()}
             isLoading={markAllMutation.isPending}
           >
-            Mark all read
+            Mark all as read
           </Button>
         )}
       </div>
 
-      <Card className="overflow-hidden">
+      {/* Tab bar */}
+      <div
+        className="flex items-center gap-0 mb-4 overflow-x-auto"
+        style={{ borderBottom: '1px solid var(--color-border)' }}
+      >
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors relative"
+            style={{
+              color: activeTab === tab ? 'var(--color-accent)' : 'var(--color-muted)',
+              borderBottom: activeTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent',
+              background: 'transparent',
+              marginBottom: -1,
+            }}
+          >
+            {tab}
+            {tab === 'All' && unread > 0 && (
+              <span
+                className="ml-1.5 inline-flex items-center justify-center text-xs font-bold rounded-full"
+                style={{
+                  background: 'var(--color-accent)',
+                  color: 'white',
+                  minWidth: 18,
+                  height: 18,
+                  padding: '0 5px',
+                  fontSize: 11,
+                }}
+              >
+                {unread}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Notification list card */}
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}
+      >
         {isLoading ? (
-          <div style={{ borderTop: '1px solid var(--color-border)' }}>
+          <div>
             {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
           </div>
         ) : isError ? (
@@ -110,71 +151,85 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <AnimatePresence>
-            {notifications.map((n, idx) => (
-              <motion.div
-                key={n._id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                onClick={() => { if (!n.read) markReadMutation.mutate(n._id); }}
-                className="flex items-start gap-3 p-4 cursor-pointer transition-all duration-200"
-                style={{
-                  background: n.read ? 'transparent' : 'rgba(124,111,224,0.06)',
-                  borderBottom: idx < notifications.length - 1 ? '1px solid var(--color-shade)' : 'none',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(124,111,224,0.08)')}
-                onMouseLeave={e => (e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(124,111,224,0.06)')}
-              >
-                {/* Avatar or icon */}
-                <div className="relative shrink-0">
-                  {n.sender ? (
-                    <>
-                      <Avatar
-                        name={`${n.sender.firstName} ${n.sender.lastName}`}
-                        src={n.sender.profilePicture}
-                        size="md"
-                      />
-                      <span
-                        className="absolute -bottom-0.5 -right-0.5 rounded-xl p-0.5"
-                        style={{ background: 'var(--color-bg)' }}
+            {notifications.map((n, idx) => {
+              const cfg = TYPE_CONFIG[n.type];
+              return (
+                <motion.div
+                  key={n._id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  onClick={() => { if (!n.read) markReadMutation.mutate(n._id); }}
+                  className="flex items-center gap-3 px-4 cursor-pointer transition-colors"
+                  style={{
+                    minHeight: 72,
+                    paddingTop: 12,
+                    paddingBottom: 12,
+                    background: n.read ? 'transparent' : 'rgba(10,102,194,0.04)',
+                    borderBottom: idx < notifications.length - 1 ? '1px solid var(--color-border)' : 'none',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-shade)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(10,102,194,0.04)')}
+                >
+                  {/* Avatar + type icon badge */}
+                  <div className="relative flex-shrink-0">
+                    {n.sender ? (
+                      <>
+                        <Avatar
+                          name={`${n.sender.firstName} ${n.sender.lastName}`}
+                          src={n.sender.profilePicture}
+                          size="md"
+                        />
+                        {cfg && (
+                          <span
+                            className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
+                            style={{ background: cfg.bg, border: '1.5px solid var(--color-card)' }}
+                          >
+                            {cfg.icon}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ background: cfg?.bg ?? 'var(--color-shade)' }}
                       >
-                        {TYPE_ICON[n.type] ?? <Bell className="w-3 h-3" style={{ color: 'var(--color-dim)' }} />}
-                      </span>
-                    </>
-                  ) : (
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center"
-                      style={{ background: 'var(--color-shade)' }}
-                    >
-                      {TYPE_ICON[n.type] ?? <Bell className="w-4 h-4" style={{ color: 'var(--color-dim)' }} />}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm" style={{ color: 'var(--color-text)' }}>
-                    {n.sender && (
-                      <span className="font-semibold">{n.sender.firstName} {n.sender.lastName} </span>
+                        {cfg?.icon ?? <Bell className="w-4 h-4 text-white" />}
+                      </div>
                     )}
-                    {n.message}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--color-dim)' }}>
-                    {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                  </p>
-                </div>
+                  </div>
 
-                {/* Unread dot */}
-                {!n.read && (
-                  <div
-                    className="w-2 h-2 rounded-full shrink-0 mt-2"
-                    style={{ background: '#9d94f0' }}
-                  />
-                )}
-              </motion.div>
-            ))}
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm leading-snug" style={{ color: 'var(--color-text)' }}>
+                      {n.sender && (
+                        <strong className="font-semibold">{n.sender.firstName} {n.sender.lastName} </strong>
+                      )}
+                      {n.message}
+                    </p>
+                    <p
+                      className="text-xs mt-0.5"
+                      style={{
+                        color: n.read ? 'var(--color-dim)' : 'var(--color-accent)',
+                        fontWeight: n.read ? 400 : 600,
+                      }}
+                    >
+                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                    </p>
+                  </div>
+
+                  {/* Unread blue dot */}
+                  {!n.read && (
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: 'var(--color-accent)' }}
+                    />
+                  )}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

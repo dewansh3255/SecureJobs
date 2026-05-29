@@ -79,7 +79,9 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /app/uploads:rw,noexec,nosuid,size=100m
+      - /tmp:rw,noexec,nosuid,size=50m
+    volumes:
+      - uploads_data:/app/uploads
     ulimits:
       nofile:
         soft: 65536
@@ -93,7 +95,28 @@ services:
           cpus: '0.5'
           memory: 256M
 
-  # Frontend - Production (served via Nginx)
+  # Frontend - Production (nginx:alpine serving pre-built static files)
+  # Fixes "white screen on first load": no Vite cold-start, instant response.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ""   # Falls back to /api in code → outer nginx proxies to backend
+        VITE_WS_URL: ""    # Falls back to /ws in code  → outer nginx proxies to backend
+    container_name: fcs26-frontend-prod
+    restart: always
+    networks:
+      - frontend-network
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  # Nginx - Reverse Proxy (HTTPS termination, DDoS protection, security headers)
   nginx:
     image: nginx:alpine
     container_name: fcs26-nginx
@@ -104,11 +127,11 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      - frontend_dist:/usr/share/nginx/html:ro
     networks:
       - frontend-network
     depends_on:
       - backend
+      - frontend
     security_opt:
       - no-new-privileges:true
     read_only: true
@@ -132,4 +155,4 @@ volumes:
   mongodb_data:
   mongodb_config:
   redis_data:
-  frontend_dist:
+  uploads_data:

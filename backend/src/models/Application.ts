@@ -10,9 +10,15 @@ export interface IApplication extends Document {
   applicant: mongoose.Types.ObjectId;
   employer: mongoose.Types.ObjectId;
   status: 'pending' | 'reviewed' | 'interviewing' | 'offered' | 'accepted' | 'rejected' | 'withdrawn';
-  resumeUrl?: string;
   coverLetter?: string;
   notes?: string;
+  /** E2EE resume — encrypted by applicant's browser for the employer's ECDH public key */
+  resumeCiphertext?: string;   // base64 AES-256-GCM ciphertext
+  resumeIv?: string;           // base64 12-byte AES-GCM IV
+  resumeOriginalName?: string; // original filename (e.g. "cv.pdf")
+  resumeMimeType?: string;     // original MIME type
+  /** Applicant's ECDH public key JWK — employer uses this to derive the shared AES key */
+  applicantPublicKey?: string; // JSON-serialised JWK
   statusHistory: Array<{
     status: string;
     changedAt: Date;
@@ -48,9 +54,11 @@ const applicationSchema = new Schema<IApplication>(
       default: 'pending',
       index: true,
     },
-    resumeUrl: {
-      type: String,
-    },
+    resumeCiphertext: { type: String },      // base64 AES-GCM ciphertext (E2EE for employer)
+    resumeIv: { type: String },              // base64 IV
+    resumeOriginalName: { type: String },    // original filename
+    resumeMimeType: { type: String },        // original MIME type
+    applicantPublicKey: { type: String },    // JSON JWK (employer uses to derive shared key)
     coverLetter: {
       type: String,
       maxlength: [5000, 'Cover letter must be less than 5000 characters'],

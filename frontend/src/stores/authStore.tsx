@@ -2,7 +2,21 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useEffect } from 'react';
 import axios from 'axios';
-import api from '@services/api';
+import api, { apiService } from '@services/api';
+import { ensureKeyPair } from '@services/crypto';
+import { socketService } from '@services/socket';
+
+/** Upload our ECDH public key to the server (idempotent — safe to call on every login).
+ *  Pass the user's password so the private key can be wrapped with PBKDF2+AES-GCM. */
+async function registerPublicKey(password?: string): Promise<void> {
+  try {
+    const kp = await ensureKeyPair(password);
+    const publicKeyStr = JSON.stringify(kp.publicKeyJwk);
+    await apiService.users.uploadPublicKey(publicKeyStr);
+  } catch {
+    // Non-fatal — E2E encryption will fall back to plaintext
+  }
+}
 
 /**
  * Ensure the XSRF-TOKEN cookie exists.
@@ -41,6 +55,17 @@ export interface User {
     profileVisibility: 'public' | 'connections' | 'private';
     darkMode: boolean;
   };
+  privacySettings?: {
+    email: 'public' | 'connections' | 'private';
+    phone: 'public' | 'connections' | 'private';
+    headline: 'public' | 'connections' | 'private';
+    about: 'public' | 'connections' | 'private';
+    experience: 'public' | 'connections' | 'private';
+    education: 'public' | 'connections' | 'private';
+    skills: 'public' | 'connections' | 'private';
+    connections: 'public' | 'connections' | 'private';
+    resume: 'public' | 'connections' | 'private';
+  };
   followers: number;
   following: number;
   connections: number;
@@ -74,6 +99,7 @@ interface RegisterData {
   password: string;
   firstName: string;
   lastName: string;
+  phone?: string;
 }
 
 // Create auth store
@@ -111,6 +137,8 @@ const useAuthStore = create<AuthStore>()(
             if (response.data.data?.user?.twoFactorEnabled === false) {
               sessionStorage.setItem('2fa_setup_pending', '1');
             }
+            registerPublicKey(password); // fire-and-forget — wraps private key with PBKDF2
+            socketService.connect(); // establish real-time channel — login flow
           } else {
             throw new Error(response.data.message || 'Login failed');
           }
@@ -137,6 +165,8 @@ const useAuthStore = create<AuthStore>()(
               twoFactorRequired: false,
               error: null,
             });
+            registerPublicKey(); // fire-and-forget — no password in validate2fa context
+            socketService.connect(); // establish real-time channel — 2FA flow
           } else {
             throw new Error(response.data.message || '2FA validation failed');
           }
@@ -179,9 +209,11 @@ const useAuthStore = create<AuthStore>()(
       },
 
       logout: async () => {
-        // Clear the 2FA setup session flag so other browser sessions don't
-        // get trapped at /setup-2fa after this user logs out.
         sessionStorage.removeItem('2fa_setup_pending');
+        // Clear ZK resume key — user must re-enter passphrase in next session
+        sessionStorage.removeItem('nexus_resume_key');
+        sessionStorage.removeItem('nexus_resume_salt');
+        socketService.disconnect(); // close real-time channel before clearing auth
         try {
           await api.post('/auth/logout');
         } catch (error) {

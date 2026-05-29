@@ -6,13 +6,14 @@
 import { Router, Request, Response } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import QRCode from 'qrcode';
-import { asyncHandler, authRateLimiter, protect, passwordResetRateLimiter, emailValidation, passwordValidation } from '../middleware';
+import { asyncHandler, authRateLimiter, registerRateLimiter, protect, passwordResetRateLimiter, emailValidation, passwordValidation } from '../middleware';
 import User from '../models/User';
 import config from '../config';
 import { logSecurityEvent } from '../utils/logger';
 import { sendPasswordResetEmail, sendVerificationEmail } from '../utils/email';
-import { generateTOTPSecret, generateTOTPUri, verifyTOTP } from '../utils/totp';
+import { generateTOTPSecret, generateTOTPUri, verifyTOTPOnce, type TOTPVerifyResult } from '../utils/totp';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ const generateTokens = (userId: string) => {
 /**
  * Set cookies with tokens
  */
-const setTokenCookies = (res: any, accessToken: string, refreshToken: string) => {
+const setTokenCookies = (res: Response, accessToken: string, refreshToken: string) => {
   // Access token cookie (short-lived)
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
@@ -60,9 +61,15 @@ const setTokenCookies = (res: any, accessToken: string, refreshToken: string) =>
  * Clear token cookies
  */
 const clearTokenCookies = (res: any) => {
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
-  res.clearCookie('XSRF-TOKEN');
+  const cookieOpts = {
+    httpOnly: true,
+    secure: config.server.isProduction,
+    sameSite: 'strict' as const,
+    path: '/',
+  };
+  res.clearCookie('accessToken', cookieOpts);
+  res.clearCookie('refreshToken', cookieOpts);
+  res.clearCookie('XSRF-TOKEN', { secure: config.server.isProduction, sameSite: 'strict' as const, path: '/' });
 };
 
 // ===========================================
@@ -73,7 +80,7 @@ const clearTokenCookies = (res: any) => {
  * POST /api/auth/register
  * Register a new user
  */
-router.post('/register', authRateLimiter, emailValidation, passwordValidation, asyncHandler(async (req: Request, res: Response) => {
+router.post('/register', registerRateLimiter, authRateLimiter, emailValidation, passwordValidation, asyncHandler(async (req: Request, res: Response) => {
   const { email, password, firstName, lastName } = req.body;
 
   // Check if user already exists
@@ -130,6 +137,15 @@ router.post('/register', authRateLimiter, emailValidation, passwordValidation, a
         firstName: user.firstName,
         lastName: user.lastName,
         fullName: user.getFullName(),
+        role: user.role,
+        accountType: user.accountType ?? 'candidate',
+        isVerified: user.isVerified,
+        twoFactorEnabled: user.twoFactorEnabled,
+        settings: user.settings,
+        privacySettings: user.privacySettings,
+        followers: user.followers?.length ?? 0,
+        following: user.following?.length ?? 0,
+        connections: user.connections?.length ?? 0,
       },
     },
   });
@@ -206,7 +222,7 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req:
     res.cookie('tfToken', tfToken, {
       httpOnly: true,
       secure: config.server.isProduction,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 5 * 60 * 1000,
     });
     logSecurityEvent('Login - 2FA required', { userId: user._id, email });
@@ -239,7 +255,15 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req:
         fullName: user.getFullName(),
         headline: user.headline,
         profilePicture: user.profilePicture,
+        role: user.role,
+        accountType: user.accountType ?? 'candidate',
+        isVerified: user.isVerified,
         twoFactorEnabled: user.twoFactorEnabled,
+        settings: user.settings,
+        privacySettings: user.privacySettings,
+        followers: user.followers?.length ?? 0,
+        following: user.following?.length ?? 0,
+        connections: user.connections?.length ?? 0,
       },
     },
   });
@@ -251,15 +275,18 @@ router.post('/login', authRateLimiter, emailValidation, asyncHandler(async (req:
 
 /**
  * POST /api/auth/logout
- * Logout user
+ * Logout user — works even with expired access token by using refresh token cookie
  */
-router.post('/logout', protect, asyncHandler(async (req: Request, res: Response) => {
-  if (req.user) {
-    await User.findByIdAndUpdate(req.user.id, {
-      refreshToken: undefined,
-    });
-
-    logSecurityEvent('User logged out', { userId: req.user.id });
+router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (refreshToken) {
+    try {
+      const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as { id: string };
+      await User.findByIdAndUpdate(decoded.id, { refreshToken: undefined });
+      logSecurityEvent('User logged out', { userId: decoded.id });
+    } catch {
+      // Token invalid/expired — still clear cookies below
+    }
   }
 
   clearTokenCookies(res);
@@ -364,12 +391,14 @@ router.get('/me', protect, asyncHandler(async (req: Request, res: Response) => {
         location: user.location,
         profilePicture: user.profilePicture,
         role: user.role,
+        accountType: user.accountType ?? 'candidate',
         isVerified: user.isVerified,
         twoFactorEnabled: user.twoFactorEnabled,
         settings: user.settings,
-        followers: user.followers.length,
-        following: user.following.length,
-        connections: user.connections.length,
+        privacySettings: user.privacySettings,
+        followers: user.followers?.length ?? 0,
+        following: user.following?.length ?? 0,
+        connections: user.connections?.length ?? 0,
       },
     },
   });
@@ -492,24 +521,33 @@ router.post('/2fa/validate', authRateLimiter, asyncHandler(async (req: Request, 
     return res.status(401).json({ success: false, message: 'User not found.' });
   }
 
-  // Verify TOTP code
-  const isValid = verifyTOTP(String(code), user.twoFactorSecret!);
+  // Verify TOTP code — replay-protected (each code usable only once)
+  const totpResult: TOTPVerifyResult = await verifyTOTPOnce(String(code), user.twoFactorSecret!, user._id.toString());
 
-  // Also check backup codes
+  // Also check backup codes (backup codes bypass TOTP replay protection)
   let usedBackupCode = false;
-  if (!isValid && user.twoFactorBackupCodes) {
-    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
-    const idx = user.twoFactorBackupCodes.indexOf(codeHash);
-    if (idx !== -1) {
-      user.twoFactorBackupCodes.splice(idx, 1);
+  if (totpResult !== 'ok' && user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
+    const inputCode = String(code);
+    let matchedIdx = -1;
+    for (let i = 0; i < user.twoFactorBackupCodes.length; i++) {
+      if (await bcrypt.compare(inputCode, user.twoFactorBackupCodes[i])) {
+        matchedIdx = i;
+        break;
+      }
+    }
+    if (matchedIdx !== -1) {
+      user.twoFactorBackupCodes.splice(matchedIdx, 1);
       await user.save();
       usedBackupCode = true;
     }
   }
 
-  if (!isValid && !usedBackupCode) {
+  if (totpResult !== 'ok' && !usedBackupCode) {
     logSecurityEvent('2FA validation failed', { userId: user._id }, 'warn');
-    return res.status(401).json({ success: false, message: 'Invalid verification code.' });
+    const msg = totpResult === 'replay'
+      ? 'This code has already been used. Please wait for a new code from your authenticator app.'
+      : 'Invalid verification code.';
+    return res.status(401).json({ success: false, message: msg });
   }
 
   res.clearCookie('tfToken');
@@ -534,7 +572,15 @@ router.post('/2fa/validate', authRateLimiter, asyncHandler(async (req: Request, 
         fullName: user.getFullName(),
         headline: user.headline,
         profilePicture: user.profilePicture,
+        role: user.role,
+        accountType: user.accountType ?? 'candidate',
+        isVerified: user.isVerified,
         twoFactorEnabled: user.twoFactorEnabled,
+        settings: user.settings,
+        privacySettings: user.privacySettings,
+        followers: user.followers?.length ?? 0,
+        following: user.following?.length ?? 0,
+        connections: user.connections?.length ?? 0,
       },
     },
   });
@@ -622,24 +668,28 @@ router.post('/2fa/enable', protect, asyncHandler(async (req: Request, res: Respo
     return res.status(400).json({ success: false, message: '2FA is already enabled.' });
   }
 
-  const isValid = verifyTOTP(String(code), user.twoFactorSecret!);
+  const totpResult: TOTPVerifyResult = await verifyTOTPOnce(String(code), user.twoFactorSecret!, user._id.toString());
   let validBackup = false;
-  if (!isValid && user.twoFactorBackupCodes) {
-    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
-    validBackup = user.twoFactorBackupCodes.includes(codeHash);
+  if (totpResult !== 'ok' && user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
+    for (const hashed of user.twoFactorBackupCodes) {
+      if (await bcrypt.compare(String(code), hashed)) { validBackup = true; break; }
+    }
   }
 
-  if (!isValid && !validBackup) {
-    return res.status(400).json({ success: false, message: 'Invalid verification code. Please try again.' });
+  if (totpResult !== 'ok' && !validBackup) {
+    const msg = totpResult === 'replay'
+      ? 'This code has already been used. Please wait for a new code.'
+      : 'Invalid verification code. Please try again.';
+    return res.status(400).json({ success: false, message: msg });
   }
 
-  // Generate 8 backup codes (hashed for storage)
+  // Generate 8 backup codes (bcrypt-hashed for storage — more resistant than SHA-256)
   const backupCodes: string[] = [];
   const hashedCodes: string[] = [];
   for (let i = 0; i < 8; i++) {
     const raw = crypto.randomBytes(4).toString('hex').toUpperCase();
     backupCodes.push(raw);
-    hashedCodes.push(crypto.createHash('sha256').update(raw).digest('hex'));
+    hashedCodes.push(await bcrypt.hash(raw, 10));
   }
 
   user.twoFactorEnabled = true;
@@ -663,6 +713,68 @@ router.post('/2fa/enable', protect, asyncHandler(async (req: Request, res: Respo
 }));
 
 /**
+ * GET /api/auth/2fa/backup-codes/count
+ * Returns how many backup codes are remaining (does NOT reveal the codes themselves).
+ * The actual codes are shown exactly once at 2FA enable time.
+ */
+router.get('/2fa/backup-codes/count', protect, asyncHandler(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user!.id).select('+twoFactorBackupCodes');
+  if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+  if (!user.twoFactorEnabled) {
+    return res.status(400).json({ success: false, message: '2FA is not enabled on this account.' });
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      remaining: user.twoFactorBackupCodes?.length ?? 0,
+      total: 8,
+    },
+  });
+}));
+
+/**
+ * POST /api/auth/2fa/backup-codes/regenerate
+ * Regenerate backup codes — requires a valid TOTP code to authorise.
+ * All previous codes are invalidated immediately.
+ */
+router.post('/2fa/backup-codes/regenerate', protect, asyncHandler(async (req: Request, res: Response) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ success: false, message: 'Current TOTP code is required to regenerate backup codes.' });
+
+  const user = await User.findById(req.user!.id).select('+twoFactorSecret +twoFactorBackupCodes');
+  if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+  if (!user.twoFactorEnabled) {
+    return res.status(400).json({ success: false, message: '2FA is not enabled on this account.' });
+  }
+
+  const totpResult: TOTPVerifyResult = await verifyTOTPOnce(String(code), user.twoFactorSecret!, user._id.toString());
+  if (totpResult !== 'ok') {
+    const msg = totpResult === 'replay'
+      ? 'This code has already been used. Please wait for a new code.'
+      : 'Invalid TOTP code.';
+    return res.status(401).json({ success: false, message: msg });
+  }
+
+  const backupCodes: string[] = [];
+  const hashedCodes: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    const raw = crypto.randomBytes(4).toString('hex').toUpperCase();
+    backupCodes.push(raw);
+    hashedCodes.push(crypto.createHash('sha256').update(raw).digest('hex'));
+  }
+
+  await User.findByIdAndUpdate(user._id, { twoFactorBackupCodes: hashedCodes });
+  logSecurityEvent('Backup codes regenerated', { userId: user._id });
+
+  return res.json({
+    success: true,
+    message: 'New backup codes generated. Save them now — they will not be shown again.',
+    data: { backupCodes },
+  });
+}));
+
+/**
  * POST /api/auth/2fa/disable
  * Disable 2FA — requires current TOTP code or backup code
  */
@@ -676,15 +788,19 @@ router.post('/2fa/disable', protect, asyncHandler(async (req: Request, res: Resp
     return res.status(400).json({ success: false, message: '2FA is not enabled on this account.' });
   }
 
-  const isValid = verifyTOTP(String(code), user.twoFactorSecret!);
+  const totpResult: TOTPVerifyResult = await verifyTOTPOnce(String(code), user.twoFactorSecret!, user._id.toString());
   let validBackup = false;
-  if (!isValid && user.twoFactorBackupCodes) {
-    const codeHash = crypto.createHash('sha256').update(String(code)).digest('hex');
-    validBackup = user.twoFactorBackupCodes.includes(codeHash);
+  if (totpResult !== 'ok' && user.twoFactorBackupCodes && user.twoFactorBackupCodes.length > 0) {
+    for (const hashed of user.twoFactorBackupCodes) {
+      if (await bcrypt.compare(String(code), hashed)) { validBackup = true; break; }
+    }
   }
 
-  if (!isValid && !validBackup) {
-    return res.status(401).json({ success: false, message: 'Invalid verification code.' });
+  if (totpResult !== 'ok' && !validBackup) {
+    const msg = totpResult === 'replay'
+      ? 'This code has already been used. Please wait for a new code.'
+      : 'Invalid verification code.';
+    return res.status(401).json({ success: false, message: msg });
   }
 
   user.twoFactorEnabled = false;
@@ -755,5 +871,72 @@ router.post('/resend-verification', protect, asyncHandler(async (req: Request, r
 
   return res.json({ success: true, message: 'Verification email resent.' });
 }));
+
+// ===========================================
+// Google OAuth Routes
+// ===========================================
+import passport from '../config/passport';
+import appConfig from '../config';
+
+/**
+ * GET /api/auth/google
+ * Redirect to Google OAuth consent screen
+ */
+router.get('/google', (req, res, next) => {
+  if (!appConfig.google.enabled) {
+    return res.status(501).json({ success: false, message: 'Google OAuth not configured.' });
+  }
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'select_account',
+  })(req, res, next);
+});
+
+/**
+ * GET /api/auth/google/callback
+ * Google redirects here after user consents
+ */
+router.get('/google/callback',
+  (req: any, res: any, next: any) => {
+    if (!appConfig.google.enabled) {
+      return res.redirect(`${appConfig.cors.clientUrl}/login?error=oauth_not_configured`);
+    }
+    passport.authenticate('google', { session: false, failureRedirect: `${appConfig.cors.clientUrl}/login?error=google_auth_failed` })(req, res, next);
+  },
+  asyncHandler(async (req: Request, res: Response) => {
+    const user = req.user as any;
+    if (!user) {
+      return res.redirect(`${appConfig.cors.clientUrl}/login?error=google_auth_failed`);
+    }
+
+    // Issue JWT cookies — same flow as normal login
+    const { accessToken, refreshToken } = generateTokens(user._id.toString());
+
+    // Persist refresh token
+    user.refreshToken = refreshToken;
+    user.lastLogin = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    setTokenCookies(res, accessToken, refreshToken);
+
+    logSecurityEvent('Google OAuth login', { userId: user._id, email: user.email });
+
+    // Redirect to frontend feed
+    res.redirect(`${appConfig.cors.clientUrl}/`);
+  })
+);
+
+/**
+ * GET /api/auth/providers
+ * Tell the frontend which OAuth providers are available
+ */
+router.get('/providers', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    providers: {
+      google: appConfig.google.enabled,
+    },
+  });
+});
 
 export default router;

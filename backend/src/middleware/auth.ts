@@ -9,6 +9,7 @@ import { Types } from 'mongoose';
 import config from '../config';
 import User from '../models/User';
 import { logSecurityEvent } from '../utils/logger';
+import { getRedisClient } from '../config/redis';
 
 // Extend Express Request to include user
 declare global {
@@ -60,8 +61,18 @@ export const protect = async (req: Request, res: Response, next: NextFunction) =
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
+    // Verify token — explicitly pin algorithm to prevent confusion attacks
+    const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] }) as JwtPayload;
+
+    // Check Redis blocklist (covers deleted/suspended users whose tokens haven't expired)
+    const redis = getRedisClient();
+    if (redis) {
+      const blocked = await redis.get(`blocklist:${decoded.id}`);
+      if (blocked) {
+        logSecurityEvent('Blocked token used', { userId: decoded.id, ip: req.ip }, 'warn');
+        return res.status(401).json({ success: false, message: 'Session invalidated. Please log in again.' });
+      }
+    }
 
     // Check if user still exists
     const user = await User.findById(decoded.id).select('-password');
@@ -177,7 +188,7 @@ export const optionalAuth = async (req: Request, _res: Response, next: NextFunct
     }
 
     if (token) {
-      const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
+      const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] }) as JwtPayload;
       const user = await User.findById(decoded.id).select('-password');
 
       if (user && user.isActive) {

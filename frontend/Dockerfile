@@ -20,15 +20,15 @@ COPY . .
 
 EXPOSE 5173
 
-# Development: run as root to allow Vite temp file writes
-# Production build uses separate stage with nginx
+# Run as non-root node user
+USER node
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
 # Stage 3: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY --from=deps /node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ARG VITE_API_URL=/api
@@ -47,5 +47,5 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --spider -q http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD wget --spider -q http://127.0.0.1/ || exit 1

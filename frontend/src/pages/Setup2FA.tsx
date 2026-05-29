@@ -145,7 +145,12 @@ export default function Setup2FAPage() {
       const res = await apiService.auth.twoFAEnable(totpCode);
       setBackupCodes(res.data.data.backupCodes);
       if (qrRefreshRef.current) clearInterval(qrRefreshRef.current);
-      await refreshUser(); // update twoFactorEnabled in store
+      // Patch twoFactorEnabled directly in the store — avoids calling refreshUser()
+      // which sets isLoading:true → ProtectedRoute unmounts this component → step
+      // resets to 'qr' → backup codes screen is never seen (the original bug).
+      useAuthStore.setState((s) => ({
+        user: s.user ? { ...s.user, twoFactorEnabled: true } : s.user,
+      }));
       setStep('backup');
       toast.success('2FA enabled successfully!');
     } catch (err: any) {
@@ -173,6 +178,9 @@ export default function Setup2FAPage() {
   const finishSetup = () => {
     sessionStorage.removeItem('2fa_setup_pending');
     navigate('/', { replace: true });
+    // Do a silent background refresh now that we're leaving the page — safe because
+    // the isLoading spinner won't affect Setup2FA (we just navigated away).
+    refreshUser();
     toast.success('Welcome! Your account is secured with 2FA.');
   };
 

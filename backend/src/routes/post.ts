@@ -48,29 +48,28 @@ router.get('/feed', protect, async (req: Request, res: Response) => {
     const limit = Math.min(20, Math.max(1, parseInt(String(req.query.limit || '10'))));
     const skip = (page - 1) * limit;
 
-    const me = await User.findById(req.user!.id).select('connections following').lean();
+    const me = await User.findById(req.user!.id).select('connections following blockedUsers').lean();
+    const blockedIds = (me?.blockedUsers || []).map(String);
     const relevantAuthors = [
       req.user!.id,
       ...(me?.connections || []).map(String),
       ...(me?.following || []).map(String),
-    ];
+    ].filter((id) => !blockedIds.includes(String(id)));
+
+    const feedFilter = {
+      author: { $in: relevantAuthors },
+      visibility: { $in: ['public', 'connections'] },
+      isDeleted: false,
+    };
 
     const [posts, total] = await Promise.all([
-      Post.find({
-        author: { $in: relevantAuthors },
-        visibility: { $in: ['public', 'connections'] },
-        isDeleted: false,
-      })
+      Post.find(feedFilter)
         .populate('author', 'firstName lastName profilePicture headline')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Post.countDocuments({
-        author: { $in: relevantAuthors },
-        visibility: { $in: ['public', 'connections'] },
-        isDeleted: false,
-      }),
+      Post.countDocuments(feedFilter),
     ]);
 
     // Attach comment counts and latest comment per post
@@ -147,6 +146,36 @@ router.post('/', protect, postRateLimiter, async (req: Request, res: Response) =
 });
 
 // ──────────────────────────────────────────────
+// GET /posts/saved — posts saved by current user
+// ──────────────────────────────────────────────
+router.get('/saved', protect, async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(String(req.query.page || '1')));
+    const limit = Math.min(20, parseInt(String(req.query.limit || '10')));
+    const skip = (page - 1) * limit;
+
+    const [posts, total] = await Promise.all([
+      Post.find({ savedBy: req.user!.id, isDeleted: false })
+        .populate('author', 'firstName lastName profilePicture headline')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Post.countDocuments({ savedBy: req.user!.id, isDeleted: false }),
+    ]);
+
+    return res.json({
+      success: true,
+      data: posts,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (error) {
+    logger.error('Saved posts error', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ──────────────────────────────────────────────
 // GET /posts/:id
 // ──────────────────────────────────────────────
 router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
@@ -158,6 +187,14 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 
     if (!post) {
       return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    // Enforce visibility: connections-only posts require an authenticated user
+    if (post.visibility === 'connections' && !req.user) {
+      return res.status(403).json({ success: false, message: 'This post is only visible to connections' });
+    }
+    if (post.visibility === 'private' && String(post.author._id) !== String(req.user?.id)) {
+      return res.status(403).json({ success: false, message: 'This post is private' });
     }
 
     const comments = await Comment.find({ post: post._id, isDeleted: false, parentComment: null })
@@ -342,6 +379,34 @@ router.delete('/:id/comments/:commentId', protect, async (req: Request, res: Res
     return res.json({ success: true, message: 'Comment deleted' });
   } catch (error) {
     logger.error('Delete comment error', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /posts/:id/save — toggle save/unsave post
+// ──────────────────────────────────────────────
+router.post('/:id/save', protect, async (req: Request, res: Response) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post || post.isDeleted) {
+      return res.status(404).json({ success: false, message: 'Post not found' });
+    }
+
+    const userId = req.user!.id;
+    const alreadySaved = (post.savedBy as mongoose.Types.ObjectId[]).some(
+      (id) => String(id) === String(userId)
+    );
+
+    if (alreadySaved) {
+      await Post.findByIdAndUpdate(req.params.id, { $pull: { savedBy: userId } });
+      return res.json({ success: true, saved: false, message: 'Post unsaved' });
+    } else {
+      await Post.findByIdAndUpdate(req.params.id, { $addToSet: { savedBy: userId } });
+      return res.json({ success: true, saved: true, message: 'Post saved' });
+    }
+  } catch (error) {
+    logger.error('Save post error', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 });

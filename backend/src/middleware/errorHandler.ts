@@ -126,7 +126,7 @@ export const errorHandler = (
 
   // Mongoose cast error
   if (err.name === 'CastError') {
-    error = new AppError(`Invalid ${err.path}: ${(err as IAppError).value}`, 400);
+    error = new AppError(`Invalid value for field: ${err.path}`, 400);
   }
 
   // JWT errors

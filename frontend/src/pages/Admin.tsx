@@ -16,13 +16,14 @@ import {
   Search, Activity, Globe,
   UserCheck, Zap, Eye,
   ArrowUpRight, ArrowDownRight, Lock, Unlock,
-  Clock, UserX,
+  Clock, UserX, Link2, X as XIcon, Database,
 } from 'lucide-react';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
+import { ThemeToggle } from '@stores/themeStore';
 import { Button } from '@components/ui/Button';
 
-type AdminSection = 'dashboard' | 'users' | 'posts' | 'jobs' | 'audit';
+type AdminSection = 'dashboard' | 'users' | 'posts' | 'jobs' | 'audit' | 'blockchain' | 'records';
 
 const adminApi = apiService.admin;
 
@@ -153,7 +154,13 @@ export default function AdminPage() {
   const [jobPage, setJobPage] = useState(1);
   const [auditPage, setAuditPage] = useState(1);
   const [auditSeverity, setAuditSeverity] = useState('');
+  const [blockchainPage, setBlockchainPage] = useState(1);
+  const [expandedBlock, setExpandedBlock] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Records inspector state
+  const [recordsCollection, setRecordsCollection] = useState<'users' | 'posts' | 'jobs'>('users');
+  const [recordsPage, setRecordsPage] = useState(1);
+  const [recordsSearch, setRecordsSearch] = useState('');
 
   if (user && user.role !== 'admin') {
     navigate('/', { replace: true });
@@ -195,6 +202,31 @@ export default function AdminPage() {
     placeholderData: (prev: any) => prev,
   });
 
+  const blocksQ = useQuery({
+    queryKey: ['admin-blockchain', blockchainPage],
+    queryFn: () => adminApi.blockchainBlocks({ page: blockchainPage, limit: 15 }),
+    enabled: section === 'blockchain',
+    placeholderData: (prev: any) => prev,
+  });
+
+  const blockchainVerifyQ = useQuery({
+    queryKey: ['admin-blockchain-verify'],
+    queryFn: () => adminApi.blockchainVerify(),
+    enabled: false,
+  });
+
+  // Records inspector — reuses existing users/posts/jobs admin endpoints
+  const recordsQ = useQuery({
+    queryKey: ['admin-records', recordsCollection, recordsPage, recordsSearch],
+    queryFn: () => {
+      if (recordsCollection === 'users') return adminApi.users({ page: recordsPage, limit: 20, search: recordsSearch });
+      if (recordsCollection === 'posts') return adminApi.posts({ page: recordsPage, limit: 20 });
+      return adminApi.jobs({ page: recordsPage, limit: 20 });
+    },
+    enabled: section === 'records',
+    placeholderData: (prev: any) => prev,
+  });
+
   /* ── Mutations ──────────────────────────────────────────── */
   const banMut = useMutation({
     mutationFn: ({ id, banned }: { id: string; banned: boolean }) => adminApi.banUser(id, banned),
@@ -232,10 +264,59 @@ export default function AdminPage() {
     { id: 'posts', label: 'Posts', icon: FileText, badge: stats?.posts?.total },
     { id: 'jobs', label: 'Jobs', icon: Briefcase, badge: stats?.jobs?.total },
     { id: 'audit', label: 'Audit Log', icon: ShieldAlert, badge: (stats?.security?.errorsToday ?? 0) || undefined },
+    { id: 'blockchain', label: 'Blockchain', icon: Link2 },
+    { id: 'records', label: 'Records', icon: Database },
   ];
 
   return (
-    <div className="flex overflow-hidden" style={{ height: 'calc(100vh - var(--header-height))', margin: '-24px', background: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-bg)' }}>
+
+      {/* ── Top Navigation Bar ────────────────────────────── */}
+      <header className="flex items-center justify-between px-6 flex-shrink-0 z-20"
+        style={{ height: '70px', background: 'var(--color-card)', borderBottom: '1px solid var(--color-border)' }}>
+        {/* Left: logo */}
+        <div className="flex items-center gap-2.5 min-w-[180px]">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #7c6fe0, #5b8ef5)' }}>
+            <Shield className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-extrabold text-base tracking-tight"
+            style={{ background: 'linear-gradient(135deg, #a78bfa, #60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            Nexus Admin
+          </span>
+        </div>
+
+        {/* Center: section name */}
+        <div className="flex-1 flex justify-center">
+          <span className="text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--color-muted)' }}>
+            {navItems.find(n => n.id === section)?.label ?? 'Admin'}
+          </span>
+        </div>
+
+        {/* Right: avatar, theme toggle, exit */}
+        <div className="flex items-center gap-3 min-w-[180px] justify-end">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #7c6fe0, #5b8ef5)', color: '#fff' }}>
+              {user?.firstName?.[0]}{user?.lastName?.[0]}
+            </div>
+            <span className="text-sm font-medium hidden sm:block" style={{ color: 'var(--color-text)' }}>
+              {user?.firstName}
+            </span>
+          </div>
+          <ThemeToggle />
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition"
+            style={{ background: 'rgba(248,113,113,0.12)', color: '#f87171', border: '1px solid rgba(248,113,113,0.25)' }}>
+            <XIcon className="w-3.5 h-3.5" />
+            Exit Admin
+          </button>
+        </div>
+      </header>
+
+      {/* ── Body: Sidebar + Content ───────────────────────── */}
+      <div className="flex flex-1 overflow-hidden">
 
       {/* ── Sidebar ──────────────────────────────────────── */}
       <motion.aside
@@ -762,8 +843,321 @@ export default function AdminPage() {
               </motion.div>
             )}
 
+            {/* ═══════════════════════════════════════════════
+                BLOCKCHAIN SECTION
+            ═══════════════════════════════════════════════ */}
+            {section === 'blockchain' && (
+              <motion.div key="blockchain" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                className="space-y-6">
+
+                {/* Chain Status Card */}
+                <div className="sp-card rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)' }}>
+                        <Link2 className="w-5 h-5" style={{ color: '#a78bfa' }} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold" style={{ color: 'var(--color-text)' }}>Chain Integrity</h3>
+                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                          SHA-256 tamper-evident audit trail
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => blockchainVerifyQ.refetch()}
+                      isLoading={blockchainVerifyQ.isFetching}
+                      leftIcon={<Shield className="w-4 h-4" />}>
+                      Verify Chain
+                    </Button>
+                  </div>
+
+                  {blockchainVerifyQ.data && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl"
+                      style={{
+                        background: blockchainVerifyQ.data.data?.data?.valid ? '#34d39915' : '#f8717115',
+                        border: `1px solid ${blockchainVerifyQ.data.data?.data?.valid ? '#34d39930' : '#f8717130'}`,
+                      }}>
+                      {blockchainVerifyQ.data.data?.data?.valid
+                        ? <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-400" />
+                        : <XCircle className="w-5 h-5 flex-shrink-0 text-red-400" />}
+                      <div>
+                        <p className="font-semibold text-sm"
+                          style={{ color: blockchainVerifyQ.data.data?.data?.valid ? '#34d399' : '#f87171' }}>
+                          {blockchainVerifyQ.data.data?.data?.valid
+                            ? 'Chain Valid — all blocks verified'
+                            : `Chain Broken at Block #${blockchainVerifyQ.data.data?.data?.brokenAt}`}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                          {blockchainVerifyQ.data.data?.data?.totalBlocks} block{blockchainVerifyQ.data.data?.data?.totalBlocks !== 1 ? 's' : ''} verified
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Blocks Table */}
+                <div className="sp-card rounded-2xl overflow-hidden">
+                  <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold" style={{ color: 'var(--color-text)' }}>Audit Blocks</h3>
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa' }}>
+                        Immutable
+                      </span>
+                    </div>
+                    <Button size="sm" variant="ghost"
+                      onClick={() => { qc.invalidateQueries({ queryKey: ['admin-blockchain'] }); setExpandedBlock(null); }}
+                      leftIcon={<RefreshCw className="w-4 h-4" />}>Refresh</Button>
+                  </div>
+
+                  <TableWrap loading={blocksQ.isLoading}>
+                    <thead>
+                      <tr>
+                        <Th>Block #</Th>
+                        <Th>Timestamp</Th>
+                        <Th>Events</Th>
+                        <Th>Prev Hash</Th>
+                        <Th>Block Hash</Th>
+                        <Th>Nonce</Th>
+                        <Th>Details</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {blocksQ.data?.data?.data?.blocks?.map((blk: any) => (
+                        <>
+                          <tr key={blk.blockNumber} className="transition hover-shade cursor-pointer"
+                            onClick={() => setExpandedBlock(expandedBlock === blk.blockNumber ? null : blk.blockNumber)}>
+                            <Td>
+                              <span className="font-mono text-sm font-bold" style={{ color: '#a78bfa' }}>
+                                #{blk.blockNumber}
+                              </span>
+                            </Td>
+                            <Td>
+                              <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-dim)' }}>
+                                <Clock className="w-3 h-3" />
+                                {new Date(blk.timestamp).toLocaleString()}
+                              </div>
+                            </Td>
+                            <Td>
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                                style={{ background: 'rgba(124,111,224,0.15)', color: 'var(--color-accent)' }}>
+                                {blk.events?.length ?? 0}
+                              </span>
+                            </Td>
+                            <Td>
+                              <code className="text-xs font-mono" style={{ color: '#22d3ee' }}>
+                                {blk.previousHash?.slice(0, 12)}…
+                              </code>
+                            </Td>
+                            <Td>
+                              <code className="text-xs font-mono" style={{ color: '#a78bfa' }}>
+                                {blk.hash?.slice(0, 12)}…
+                              </code>
+                            </Td>
+                            <Td>
+                              <span className="text-xs font-mono" style={{ color: 'var(--color-muted)' }}>
+                                {blk.nonce}
+                              </span>
+                            </Td>
+                            <Td>
+                              <button
+                                className="p-1.5 rounded-lg transition hover-shade"
+                                title={expandedBlock === blk.blockNumber ? 'Collapse' : 'View events'}>
+                                <Eye className="w-3.5 h-3.5" style={{ color: 'var(--color-accent)' }} />
+                              </button>
+                            </Td>
+                          </tr>
+
+                          {/* Expanded events row */}
+                          {expandedBlock === blk.blockNumber && (
+                            <tr key={`${blk.blockNumber}-events`}>
+                              <td colSpan={7} style={{ borderBottom: '1px solid var(--color-shade)', padding: 0 }}>
+                                <div className="p-4 space-y-2" style={{ background: 'var(--color-shade)' }}>
+                                  <p className="text-xs font-semibold uppercase tracking-wider mb-3"
+                                    style={{ color: 'var(--color-muted)' }}>
+                                    Block #{blk.blockNumber} Events ({blk.events?.length ?? 0})
+                                  </p>
+                                  {blk.events?.length === 0 ? (
+                                    <p className="text-xs" style={{ color: 'var(--color-dim)' }}>
+                                      Genesis block — no events
+                                    </p>
+                                  ) : (
+                                    blk.events?.map((ev: any, i: number) => (
+                                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl"
+                                        style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+                                        <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
+                                          style={{ background: '#a78bfa' }} />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <code className="text-xs font-mono font-semibold"
+                                              style={{ color: '#a78bfa' }}>{ev.action}</code>
+                                            {ev.ip && (
+                                              <code className="text-xs font-mono"
+                                                style={{ color: 'var(--color-dim)' }}>{ev.ip}</code>
+                                            )}
+                                          </div>
+                                          <p className="text-xs mt-0.5" style={{ color: 'var(--color-dim)' }}>
+                                            {new Date(ev.timestamp).toLocaleString()}
+                                            {ev.userId && ` · User: ${ev.userId}`}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                  <div className="pt-2 space-y-1">
+                                    <p className="text-xs font-mono" style={{ color: 'var(--color-dim)' }}>
+                                      <span style={{ color: 'var(--color-muted)' }}>prev:</span>{' '}
+                                      <span style={{ color: '#22d3ee' }}>{blk.previousHash}</span>
+                                    </p>
+                                    <p className="text-xs font-mono" style={{ color: 'var(--color-dim)' }}>
+                                      <span style={{ color: 'var(--color-muted)' }}>hash:</span>{' '}
+                                      <span style={{ color: '#a78bfa' }}>{blk.hash}</span>
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      ))}
+                    </tbody>
+                  </TableWrap>
+
+                  {blocksQ.data?.data?.data?.pagination && (
+                    <div className="px-6 pb-4">
+                      <Pagination page={blockchainPage} pages={blocksQ.data.data.data.pagination.pages}
+                        onPrev={() => setBlockchainPage(p => p - 1)}
+                        onNext={() => setBlockchainPage(p => p + 1)} />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ═══════════════════════════════════════════════
+                RECORDS INSPECTOR SECTION
+            ═══════════════════════════════════════════════ */}
+            {section === 'records' && (
+              <motion.div key="records" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                className="space-y-6">
+
+                <div className="sp-card rounded-2xl overflow-hidden">
+                  {/* Header + controls */}
+                  <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-3"
+                    style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)' }}>
+                        <Database className="w-5 h-5" style={{ color: '#60a5fa' }} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold" style={{ color: 'var(--color-text)' }}>Records Inspector</h3>
+                        <p className="text-xs" style={{ color: 'var(--color-muted)' }}>Browse and inspect raw collection data</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Collection picker */}
+                      {(['users', 'posts', 'jobs'] as const).map(c => (
+                        <button key={c} onClick={() => { setRecordsCollection(c); setRecordsPage(1); setRecordsSearch(''); }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition"
+                          style={{
+                            background: recordsCollection === c ? 'rgba(96,165,250,0.2)' : 'var(--color-shade)',
+                            color: recordsCollection === c ? '#60a5fa' : 'var(--color-dim)',
+                            border: `1px solid ${recordsCollection === c ? 'rgba(96,165,250,0.4)' : 'var(--color-border)'}`,
+                          }}>
+                          {c}
+                        </button>
+                      ))}
+                      {/* Search (users only) */}
+                      {recordsCollection === 'users' && (
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-muted)' }} />
+                          <input value={recordsSearch} onChange={e => { setRecordsSearch(e.target.value); setRecordsPage(1); }}
+                            placeholder="Search…" className="pl-7 pr-3 py-1.5 text-xs rounded-lg w-40"
+                            style={{ background: 'var(--color-input-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                        </div>
+                      )}
+                      <Button size="sm" variant="ghost"
+                        onClick={() => qc.invalidateQueries({ queryKey: ['admin-records'] })}
+                        leftIcon={<RefreshCw className="w-4 h-4" />}>Refresh</Button>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <TableWrap loading={recordsQ.isLoading}>
+                    {recordsCollection === 'users' && (
+                      <><thead><tr>
+                        <Th>Name</Th><Th>Email</Th><Th>Role</Th><Th>Account</Th><Th>Verified</Th><Th>Active</Th><Th>Joined</Th>
+                      </tr></thead><tbody>
+                        {(recordsQ.data?.data?.data?.users ?? []).map((u: any) => (
+                          <tr key={u._id} className="transition hover-shade">
+                            <Td><span className="font-medium" style={{ color: 'var(--color-text)' }}>{u.firstName} {u.lastName}</span></Td>
+                            <Td><span className="text-xs font-mono" style={{ color: 'var(--color-dim)' }}>{u.email}</span></Td>
+                            <Td><span className="text-xs px-2 py-0.5 rounded-full font-semibold capitalize"
+                              style={{ background: u.role === 'admin' ? '#f8717115' : 'rgba(96,165,250,0.1)', color: u.role === 'admin' ? '#f87171' : '#60a5fa' }}>
+                              {u.role}
+                            </span></Td>
+                            <Td><span className="text-xs capitalize" style={{ color: 'var(--color-dim)' }}>{u.accountType}</span></Td>
+                            <Td>{u.isVerified ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <XCircle className="w-4 h-4 text-red-400" />}</Td>
+                            <Td>{u.isActive !== false ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <XCircle className="w-4 h-4 text-red-400" />}</Td>
+                            <Td><span className="text-xs" style={{ color: 'var(--color-muted)' }}>{new Date(u.createdAt).toLocaleDateString()}</span></Td>
+                          </tr>
+                        ))}
+                      </tbody></>
+                    )}
+                    {recordsCollection === 'posts' && (
+                      <><thead><tr><Th>Author</Th><Th>Content</Th><Th>Likes</Th><Th>Comments</Th><Th>Created</Th></tr></thead><tbody>
+                        {(recordsQ.data?.data?.data?.posts ?? []).map((p: any) => (
+                          <tr key={p._id} className="transition hover-shade">
+                            <Td><span className="text-sm" style={{ color: 'var(--color-text)' }}>{p.author?.firstName} {p.author?.lastName}</span></Td>
+                            <Td><span className="text-xs line-clamp-2 max-w-xs" style={{ color: 'var(--color-dim)' }}>{p.content}</span></Td>
+                            <Td><span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{p.likes?.length ?? 0}</span></Td>
+                            <Td><span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{p.comments?.length ?? 0}</span></Td>
+                            <Td><span className="text-xs" style={{ color: 'var(--color-muted)' }}>{new Date(p.createdAt).toLocaleDateString()}</span></Td>
+                          </tr>
+                        ))}
+                      </tbody></>
+                    )}
+                    {recordsCollection === 'jobs' && (
+                      <><thead><tr><Th>Title</Th><Th>Company</Th><Th>Type</Th><Th>Status</Th><Th>Applications</Th><Th>Posted</Th></tr></thead><tbody>
+                        {(recordsQ.data?.data?.data?.jobs ?? []).map((j: any) => (
+                          <tr key={j._id} className="transition hover-shade">
+                            <Td><span className="font-medium" style={{ color: 'var(--color-text)' }}>{j.title}</span></Td>
+                            <Td><span className="text-xs" style={{ color: 'var(--color-dim)' }}>{j.company?.name ?? j.companyName}</span></Td>
+                            <Td><span className="text-xs capitalize" style={{ color: 'var(--color-dim)' }}>{j.type}</span></Td>
+                            <Td><span className="text-xs capitalize px-2 py-0.5 rounded-full font-semibold"
+                              style={{ background: j.status === 'active' ? '#34d39915' : '#f8717115', color: j.status === 'active' ? '#34d399' : '#f87171' }}>
+                              {j.status}
+                            </span></Td>
+                            <Td><span className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{j.applicationCount ?? 0}</span></Td>
+                            <Td><span className="text-xs" style={{ color: 'var(--color-muted)' }}>{new Date(j.createdAt).toLocaleDateString()}</span></Td>
+                          </tr>
+                        ))}
+                      </tbody></>
+                    )}
+                  </TableWrap>
+
+                  {/* Pagination */}
+                  {(() => {
+                    const pag = recordsQ.data?.data?.data?.pagination;
+                    return pag ? (
+                      <div className="px-6 pb-4">
+                        <Pagination page={recordsPage} pages={pag.pages}
+                          onPrev={() => setRecordsPage(p => p - 1)}
+                          onNext={() => setRecordsPage(p => p + 1)} />
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              </motion.div>
+            )}
+
           </AnimatePresence>
         </div>
+      </div>
       </div>
     </div>
   );

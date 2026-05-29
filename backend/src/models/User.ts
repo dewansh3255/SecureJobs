@@ -8,7 +8,9 @@ import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
   email: string;
-  password: string;
+  password?: string;
+  googleId?: string;
+  authProvider: 'local' | 'google';
   firstName: string;
   lastName: string;
   profilePicture?: string;
@@ -16,6 +18,7 @@ export interface IUser extends Document {
   headline?: string;
   about?: string;
   location?: string;
+  phone?: string;
   website?: string;
   industry?: string;
   skills: string[];
@@ -75,24 +78,35 @@ export interface IUser extends Document {
   following: mongoose.Types.ObjectId[];
   connections: mongoose.Types.ObjectId[];
   blockedUsers: mongoose.Types.ObjectId[];
+  lastSeen?: Date;
+  notificationPreferences: {
+    email: {
+      connectionRequest: boolean;
+      connectionAccepted: boolean;
+      newMessage: boolean;
+      postReaction: boolean;
+      postComment: boolean;
+      jobApplication: boolean;
+      jobStatusUpdate: boolean;
+    };
+    push: {
+      connectionRequest: boolean;
+      newMessage: boolean;
+      postReaction: boolean;
+      postComment: boolean;
+    };
+  };
   /** ECDH P-256 public key (JWK JSON string) for E2E message encryption */
   publicKey?: string;
-  /** Encrypted resume — PDF or DOCX, AES-256-GCM encrypted at rest */
+  /** Zero-knowledge encrypted resume — encrypted entirely in the browser.
+   *  The server stores only ciphertext; it CANNOT decrypt the file. */
   resume?: {
-    encryptedPath: string;   // path to encrypted file on disk
+    encryptedPath: string;   // path to ciphertext file on disk
     originalName: string;    // original filename shown to user
     mimeType: string;        // application/pdf or application/vnd.openxmlformats-officedocument.wordprocessingml.document
-    iv: string;              // AES-GCM IV (hex)
-    authTag: string;         // AES-GCM auth tag (hex)
+    salt: string;            // PBKDF2 salt — hex (browser-generated, NOT secret)
+    iv: string;              // AES-GCM IV — hex (browser-generated)
     uploadedAt: Date;
-    /** Skills detected by resume parser (e.g. ['react', 'typescript']) */
-    parsedSkills: string[];
-    /** Job titles detected by resume parser (e.g. ['software engineer']) */
-    parsedTitles: string[];
-    /** Education keywords detected by resume parser (e.g. ['b.tech', 'computer science']) */
-    parsedEducation: string[];
-    /** Raw extracted text — excluded from default API responses */
-    resumeText?: string;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -115,10 +129,21 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: false,          // optional — OAuth users have no password
       minlength: [8, 'Password must be at least 8 characters'],
       maxlength: [128, 'Password must be less than 128 characters'],
       select: false,
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
+      index: true,
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local',
     },
     firstName: {
       type: String,
@@ -156,6 +181,13 @@ const userSchema = new Schema<IUser>(
       type: String,
       maxlength: [100, 'Location must be less than 100 characters'],
     },
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'Phone must be less than 20 characters'],
+      sparse: true,
+      index: true,
+    },
     website: {
       type: String,
       maxlength: [200, 'Website must be less than 200 characters'],
@@ -167,6 +199,7 @@ const userSchema = new Schema<IUser>(
     skills: {
       type: [String],
       default: [],
+      validate: { validator: (arr: string[]) => arr.length <= 50, message: 'Too many skills (max 50)' },
     },
     experience: [
       {
@@ -297,6 +330,27 @@ const userSchema = new Schema<IUser>(
         ref: 'User',
       },
     ],
+    lastSeen: {
+      type: Date,
+      default: null,
+    },
+    notificationPreferences: {
+      email: {
+        connectionRequest: { type: Boolean, default: true },
+        connectionAccepted: { type: Boolean, default: true },
+        newMessage: { type: Boolean, default: true },
+        postReaction: { type: Boolean, default: false },
+        postComment: { type: Boolean, default: true },
+        jobApplication: { type: Boolean, default: true },
+        jobStatusUpdate: { type: Boolean, default: true },
+      },
+      push: {
+        connectionRequest: { type: Boolean, default: true },
+        newMessage: { type: Boolean, default: true },
+        postReaction: { type: Boolean, default: true },
+        postComment: { type: Boolean, default: true },
+      },
+    },
     privacySettings: {
       email:       { type: String, enum: ['public', 'connections', 'private'], default: 'private' },
       phone:       { type: String, enum: ['public', 'connections', 'private'], default: 'private' },
@@ -316,13 +370,9 @@ const userSchema = new Schema<IUser>(
       encryptedPath: { type: String },
       originalName: { type: String },
       mimeType: { type: String },
-      iv: { type: String },
-      authTag: { type: String },
+      salt: { type: String },   // PBKDF2 salt (browser-generated, hex)
+      iv: { type: String },     // AES-GCM IV (browser-generated, hex)
       uploadedAt: { type: Date },
-      parsedSkills: { type: [String], default: [] },
-      parsedTitles: { type: [String], default: [] },
-      parsedEducation: { type: [String], default: [] },
-      resumeText: { type: String, select: false },
     },
   },
   {
@@ -330,13 +380,16 @@ const userSchema = new Schema<IUser>(
     toJSON: {
       virtuals: true,
       transform(_doc, ret) {
-        // Strip internal encryption fields and raw text from resume before serialising to JSON
-        if (ret.resume) {
+        // Strip the entire resume field if no file has been uploaded yet
+        // (Mongoose creates the subdocument with default values even when empty)
+        if (ret.resume && !ret.resume.originalName) {
+          delete ret.resume;
+        } else if (ret.resume) {
+          // Strip server-only fields — salt, iv, encryptedPath stay server-side for download
           const r = ret.resume as Record<string, unknown>;
           delete r['encryptedPath'];
+          delete r['salt'];
           delete r['iv'];
-          delete r['authTag'];
-          delete r['resumeText'];
         }
         return ret;
       },
@@ -362,7 +415,7 @@ userSchema.virtual('profileUrl').get(function () {
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.password || !this.isModified('password')) return next();
 
   try {
     const salt = await bcrypt.genSalt(12);

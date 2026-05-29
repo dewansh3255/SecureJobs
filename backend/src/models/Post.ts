@@ -21,6 +21,7 @@ export interface IPost extends Document {
   reactionCount: number;
   commentCount: number;
   shareCount: number;
+  savedBy: mongoose.Types.ObjectId[];
   visibility: 'public' | 'connections' | 'private';
   isEdited: boolean;
   originalPost?: mongoose.Types.ObjectId;
@@ -110,6 +111,13 @@ const postSchema = new Schema<IPost>(
       type: Number,
       default: 0,
     },
+    savedBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        index: true,
+      },
+    ],
     visibility: {
       type: String,
       enum: ['public', 'connections', 'private'],
@@ -127,12 +135,11 @@ const postSchema = new Schema<IPost>(
       type: Schema.Types.ObjectId,
       ref: 'Post',
     },
-    tags: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    tags: {
+      type: [String],
+      default: [],
+      validate: { validator: (arr: string[]) => arr.length <= 50, message: 'Too many tags (max 50)' },
+    },
     isDeleted: {
       type: Boolean,
       default: false,

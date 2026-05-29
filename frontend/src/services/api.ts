@@ -129,6 +129,20 @@ export const apiService = {
     // E2E encryption
     uploadPublicKey: (publicKey: string) => api.post('/users/me/keys', { publicKey }),
     getPublicKey: (userId: string) => api.get(`/users/${userId}/public-key`),
+    // Resume (encrypted at rest)
+    uploadResume: (formData: FormData) =>
+      api.post('/users/me/resume', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    downloadResumeUrl: () => '/api/users/me/resume',
+    deleteResume: () => api.delete('/users/me/resume'),
+    getMyProfile: () => api.get('/users/me'),
+    updatePrivacy: (settings: Record<string, string>) => api.patch('/users/me/privacy', settings),
+    getPrivacySettings: () => api.get('/users/me/privacy'),
+    // Account deletion (requires TOTP + password)
+    deleteAccount: (password: string, totpCode: string) =>
+      api.delete('/users/me', { data: { password, totpCode } }),
+    getNotificationPrefs: () => api.get('/users/me/notification-prefs'),
+    updateNotificationPrefs: (prefs: Record<string, boolean>) =>
+      api.patch('/users/me/notification-prefs', prefs),
   },
 
   // Recommendations (AI — pure MongoDB aggregation)
@@ -164,6 +178,8 @@ export const apiService = {
     getComments: (postId: string) => api.get(`/posts/${postId}`),
     deleteComment: (postId: string, commentId: string) =>
       api.delete(`/posts/${postId}/comments/${commentId}`),
+    save: (id: string) => api.post(`/posts/${id}/save`),
+    getSaved: (page = 1) => api.get('/posts/saved', { params: { page, limit: 10 } }),
   },
 
   // Messages
@@ -173,11 +189,14 @@ export const apiService = {
       api.get(`/messages/conversations/${conversationId}`),
     createConversation: (participantId: string) =>
       api.post('/messages/conversations', { participantId }),
-    send: (conversationId: string, content: string) =>
-      api.post(`/messages/conversations/${conversationId}`, { content }),
+    send: (conversationId: string, content: string, opts?: { signature?: string; signerPublicKey?: string }) =>
+      api.post(`/messages/conversations/${conversationId}`, { content, ...opts }),
     markRead: (conversationId: string) =>
       api.patch(`/messages/conversations/${conversationId}/read`),
     getUnreadCount: () => api.get('/messages/unread-count'),
+    verifySignature: (messageId: string) => api.post(`/messages/${messageId}/verify`),
+    markAllRead: () => api.patch('/messages/read-all'),
+    searchMessages: (q: string) => api.get('/messages/search', { params: { q } }),
   },
 
   // Jobs
@@ -189,9 +208,22 @@ export const apiService = {
     update: (id: string, data: Record<string, unknown>) =>
       api.put(`/jobs/${id}`, data),
     delete: (id: string) => api.delete(`/jobs/${id}`),
-    apply: (jobId: string, data?: { coverLetter?: string; resumeUrl?: string }) =>
+    apply: (jobId: string, data?: {
+      coverLetter?: string;
+      resumeCiphertext?: string;
+      resumeIv?: string;
+      resumeOriginalName?: string;
+      resumeMimeType?: string;
+      applicantPublicKey?: string;
+    }) =>
       api.post(`/jobs/${jobId}/apply`, data),
+    getEmployerKey: (jobId: string) => api.get(`/jobs/${jobId}/employer-key`),
+    getApplicationResume: (appId: string) => api.get(`/jobs/applications/${appId}/resume`),
     getMyApplications: () => api.get('/jobs/applications/mine'),
+    getJobApplications: (jobId: string, params?: Record<string, string | number>) =>
+      api.get(`/jobs/${jobId}/applications`, { params }),
+    updateApplicationStatus: (appId: string, status: string, notes?: string) =>
+      api.patch(`/jobs/applications/${appId}/status`, { status, notes }),
   },
 
   // Notifications
@@ -201,6 +233,27 @@ export const apiService = {
     markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
     markAllAsRead: () => api.patch('/notifications/read-all'),
     getUnreadCount: () => api.get('/notifications/unread-count'),
+  },
+
+  // Companies
+  companies: {
+    list: (params?: Record<string, string | number | boolean>) =>
+      api.get('/companies', { params }),
+    get: (id: string) => api.get(`/companies/${id}`),
+    create: (data: Record<string, unknown>) => api.post('/companies', data),
+    update: (id: string, data: Record<string, unknown>) => api.put(`/companies/${id}`, data),
+    delete: (id: string) => api.delete(`/companies/${id}`),
+    addMember: (id: string, data: { userId: string; role: string }) =>
+      api.post(`/companies/${id}/members`, data),
+    removeMember: (id: string, userId: string) =>
+      api.delete(`/companies/${id}/members/${userId}`),
+    follow: (id: string) => api.post(`/companies/${id}/follow`),
+    getJobs: (id: string) => api.get(`/companies/${id}/jobs`),
+    uploadLogo: (id: string, file: File) => {
+      const fd = new FormData();
+      fd.append('logo', file);
+      return api.post(`/companies/${id}/logo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
   },
 
   // Admin (role: admin only)
@@ -217,6 +270,9 @@ export const apiService = {
     jobs: (params: object) => api.get('/admin/jobs', { params }),
     deleteJob: (id: string) => api.delete(`/admin/jobs/${id}`),
     auditLogs: (params: object) => api.get('/admin/audit-logs', { params }),
+    blockchainBlocks: (params: object) => api.get('/admin/blockchain', { params }),
+    blockchainVerify: () => api.get('/admin/blockchain/verify'),
+    blockchainBlock: (blockNumber: number) => api.get(`/admin/blockchain/${blockNumber}`),
   },
 };
 

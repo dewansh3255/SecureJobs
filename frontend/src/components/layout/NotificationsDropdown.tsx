@@ -3,12 +3,13 @@
  * - Hover to peek (500ms delay so it doesn't trigger on accidental movers)
  * - Click to pin open / click outside to close
  * - Badge count fed from parent (from useQuery in MainLayout)
+ * - Connection requests show Accept / Decline inline buttons
  */
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, UserPlus, Heart, MessageCircle, Briefcase, CheckCheck, BellOff } from 'lucide-react';
+import { Bell, UserPlus, Heart, MessageCircle, Briefcase, CheckCheck, BellOff, Check, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiService } from '@services/api';
 import { Avatar } from '@components/ui/Avatar';
@@ -20,6 +21,7 @@ interface Notification {
   title: string;
   message: string;
   sender?: { _id: string; firstName: string; lastName: string; profilePicture?: string };
+  data?: Record<string, unknown>;
   read: boolean;
   createdAt: string;
 }
@@ -63,6 +65,30 @@ export default function NotificationsDropdown({ badgeCount }: Props) {
   const markAllMutation = useMutation({
     mutationFn: () => apiService.notifications.markAllAsRead(),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications-dropdown'] });
+      qc.invalidateQueries({ queryKey: ['unread-notif-count'] });
+    },
+  });
+
+  // Track which connection notifications have been acted on (locally, to hide buttons)
+  const [actedConnections, setActedConnections] = useState<Record<string, 'accepted' | 'declined'>>({});
+
+  const acceptConnectionMutation = useMutation({
+    mutationFn: ({ notifId, connectionId }: { notifId: string; connectionId: string }) =>
+      apiService.connections.accept(connectionId).then(r => ({ r, notifId })),
+    onSuccess: ({ notifId }) => {
+      setActedConnections(prev => ({ ...prev, [notifId]: 'accepted' }));
+      qc.invalidateQueries({ queryKey: ['notifications-dropdown'] });
+      qc.invalidateQueries({ queryKey: ['unread-notif-count'] });
+      qc.invalidateQueries({ queryKey: ['connections'] });
+    },
+  });
+
+  const declineConnectionMutation = useMutation({
+    mutationFn: ({ notifId, connectionId }: { notifId: string; connectionId: string }) =>
+      apiService.connections.reject(connectionId).then(r => ({ r, notifId })),
+    onSuccess: ({ notifId }) => {
+      setActedConnections(prev => ({ ...prev, [notifId]: 'declined' }));
       qc.invalidateQueries({ queryKey: ['notifications-dropdown'] });
       qc.invalidateQueries({ queryKey: ['unread-notif-count'] });
     },
@@ -195,66 +221,115 @@ export default function NotificationsDropdown({ badgeCount }: Props) {
                   <p className="text-sm" style={{ color: 'var(--color-muted)' }}>All caught up!</p>
                 </div>
               ) : (
-                notifications.map(n => (
-                  <button
-                    key={n._id}
-                    onClick={() => { if (!n.read) markReadMutation.mutate(n._id); }}
-                    className="w-full flex items-start gap-3 px-4 py-3 transition-all duration-150 text-left"
-                    style={{
-                      background: n.read ? 'transparent' : 'rgba(124,111,224,0.06)',
-                      borderBottom: '1px solid var(--color-border)',
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'var(--color-shade)'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = n.read ? 'transparent' : 'rgba(124,111,224,0.06)'}
-                  >
-                    {/* Avatar with icon badge */}
-                    <div className="relative flex-shrink-0">
-                      {n.sender ? (
-                        <Avatar
-                          name={`${n.sender.firstName} ${n.sender.lastName}`}
-                          src={n.sender.profilePicture}
-                          size="sm"
+                notifications.map(n => {
+                  const connectionId = n.type === 'connection_request'
+                    ? (n.data?.connectionId as string | undefined)
+                    : undefined;
+                  const acted = actedConnections[n._id];
+                  const isMutating =
+                    (acceptConnectionMutation.isPending && (acceptConnectionMutation.variables as any)?.notifId === n._id) ||
+                    (declineConnectionMutation.isPending && (declineConnectionMutation.variables as any)?.notifId === n._id);
+
+                  return (
+                    <div
+                      key={n._id}
+                      className="flex items-start gap-3 px-4 py-3 transition-all duration-150"
+                      style={{
+                        background: n.read ? 'transparent' : 'rgba(124,111,224,0.06)',
+                        borderBottom: '1px solid var(--color-border)',
+                        cursor: 'default',
+                      }}
+                      onClick={() => { if (!n.read) markReadMutation.mutate(n._id); }}
+                    >
+                      {/* Avatar with icon badge */}
+                      <div className="relative flex-shrink-0">
+                        {n.sender ? (
+                          <Avatar
+                            name={`${n.sender.firstName} ${n.sender.lastName}`}
+                            src={n.sender.profilePicture}
+                            size="sm"
+                          />
+                        ) : (
+                          <div
+                            className="w-9 h-9 rounded-xl flex items-center justify-center"
+                            style={{ background: 'rgba(124,111,224,0.18)' }}
+                          >
+                            <Bell className="w-4 h-4" style={{ color: '#9d94f0' }} />
+                          </div>
+                        )}
+                        {TYPE_ICON[n.type] && (
+                          <div
+                            className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                            style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)' }}
+                          >
+                            {TYPE_ICON[n.type]}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Text + actions */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold leading-snug" style={{ color: 'var(--color-text)' }}>
+                          {n.title}
+                        </p>
+                        <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: 'var(--color-muted)' }}>
+                          {n.sender ? <><strong>{n.sender.firstName} {n.sender.lastName}</strong> {n.message}</> : n.message}
+                        </p>
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--color-dim)' }}>
+                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                        </p>
+
+                        {/* Connection request action buttons */}
+                        {n.type === 'connection_request' && connectionId && (
+                          <div className="mt-2 flex items-center gap-2">
+                            {acted === 'accepted' ? (
+                              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>
+                                ✓ Connected
+                              </span>
+                            ) : acted === 'declined' ? (
+                              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                                Declined
+                              </span>
+                            ) : (
+                              <>
+                                <button
+                                  disabled={isMutating}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    acceptConnectionMutation.mutate({ notifId: n._id, connectionId });
+                                  }}
+                                  className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+                                  style={{ background: 'var(--color-accent)', color: '#fff', opacity: isMutating ? 0.6 : 1 }}
+                                >
+                                  <Check className="w-3 h-3" /> Accept
+                                </button>
+                                <button
+                                  disabled={isMutating}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    declineConnectionMutation.mutate({ notifId: n._id, connectionId });
+                                  }}
+                                  className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+                                  style={{ background: 'var(--color-shade)', color: 'var(--color-muted)', border: '1px solid var(--color-border)', opacity: isMutating ? 0.6 : 1 }}
+                                >
+                                  <X className="w-3 h-3" /> Decline
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Unread dot */}
+                      {!n.read && (
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
+                          style={{ background: '#e06fbc' }}
                         />
-                      ) : (
-                        <div
-                          className="w-9 h-9 rounded-xl flex items-center justify-center"
-                          style={{ background: 'rgba(124,111,224,0.18)' }}
-                        >
-                          <Bell className="w-4 h-4" style={{ color: '#9d94f0' }} />
-                        </div>
-                      )}
-                      {TYPE_ICON[n.type] && (
-                        <div
-                          className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                          style={{ background: 'var(--color-surface)', border: '1.5px solid var(--color-border)' }}
-                        >
-                          {TYPE_ICON[n.type]}
-                        </div>
                       )}
                     </div>
-
-                    {/* Text */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold leading-snug" style={{ color: 'var(--color-text)' }}>
-                        {n.title}
-                      </p>
-                      <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: 'var(--color-muted)' }}>
-                        {n.message}
-                      </p>
-                      <p className="text-[10px] mt-1" style={{ color: 'var(--color-dim)' }}>
-                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                      </p>
-                    </div>
-
-                    {/* Unread dot */}
-                    {!n.read && (
-                      <div
-                        className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
-                        style={{ background: '#e06fbc' }}
-                      />
-                    )}
-                  </button>
-                ))
+                  );
+                })
               )}
             </div>
 

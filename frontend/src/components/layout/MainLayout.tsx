@@ -1,60 +1,22 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Home,
-  Users,
-  Briefcase,
-  MessageSquare,
-  Settings,
-  LogOut,
-  Shield,
-  Compass,
-  Bookmark,
-  Search,
-  X,
+  Home, Users, Briefcase, MessageSquare, Settings, LogOut, Shield,
+  Search, Bell, ChevronDown, Grid3x3,
 } from 'lucide-react';
 import { ThemeToggle } from '@stores/themeStore';
 import { useAuth } from '@stores/authStore';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useE2EKeys } from '@hooks/useE2EKeys';
 import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@services/api';
-import NotificationsDropdown from './NotificationsDropdown';
-
-const navItems = [
-  { name: 'Home',    href: '/',          icon: Home },
-  { name: 'Network', href: '/network',   icon: Users },
-  { name: 'Messages',href: '/messaging', icon: MessageSquare, badge: true },
-  { name: 'Jobs',    href: '/jobs',      icon: Briefcase },
-  { name: 'Explore', href: '/network',   icon: Compass },
-  { name: 'Saved',   href: '/jobs',      icon: Bookmark },
-];
-
-const PAGE_LABELS: Record<string, string> = {
-  '/':             'Feed',
-  '/network':      'Network',
-  '/jobs':         'Jobs',
-  '/messaging':    'Messages',
-  '/notifications':'Notifications',
-  '/settings':     'Settings',
-  '/admin':        'Admin',
-};
 
 export default function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/network?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchOpen(false);
-      setSearchQuery('');
-    }
-  };
+  const [meOpen, setMeOpen] = useState(false);
+  const meRef = useRef<HTMLDivElement>(null);
 
   // Initialize E2E encryption key pair (background, non-blocking)
   useE2EKeys();
@@ -74,305 +36,277 @@ export default function MainLayout() {
     refetchInterval: 60_000,
   });
 
+  const { data: pendingCount } = useQuery({
+    queryKey: ['pending-connections-count'],
+    queryFn: () =>
+      apiService.connections.getPending().then(r => {
+        const d = r.data?.data;
+        if (Array.isArray(d)) return d.length;
+        if (Array.isArray(d?.connections)) return (d.connections as unknown[]).length;
+        return 0;
+      }),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
   const unreadNotif = notifCount ?? 0;
   const unreadMsg = msgCount ?? 0;
+  const pendingInvites = pendingCount ?? 0;
 
   const handleLogout = async () => {
     await logout();
     navigate('/login', { replace: true });
   };
 
-  const pageLabel = PAGE_LABELS[location.pathname] ||
-    (location.pathname.startsWith('/profile') ? 'Profile' : 'Nexus');
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/network?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+    }
+  };
+
+  // Close Me dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (meRef.current && !meRef.current.contains(e.target as Node)) {
+        setMeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const checkActive = (href: string) =>
+    href === '/' ? location.pathname === '/' : location.pathname.startsWith(href);
 
   const initials = user
     ? `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase()
     : 'U';
 
-  return (
-    <div
-      className="min-h-screen"
-      style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
-    >
-      {/* ── Ambient background blobs ── */}
-      <div className="ambient-bg" aria-hidden="true">
-        <div className="ambient-blob ambient-blob-1" />
-        <div className="ambient-blob ambient-blob-2" />
-        <div className="ambient-blob ambient-blob-3" />
-      </div>
+  const centerNavItems = [
+    { name: 'Home',          href: '/',              icon: Home,          badge: 0 },
+    { name: 'My Network',    href: '/network',       icon: Users,         badge: pendingInvites },
+    { name: 'Jobs',          href: '/jobs',          icon: Briefcase,     badge: 0 },
+    { name: 'Messaging',     href: '/messaging',     icon: MessageSquare, badge: unreadMsg },
+    { name: 'Notifications', href: '/notifications', icon: Bell,          badge: unreadNotif },
+    { name: 'Work',          href: '/applications',  icon: Grid3x3,       badge: 0 },
+  ];
 
-      {/* ── Left Dock ── */}
+  const mobileNavItems = centerNavItems.slice(0, 5);
+
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
+
+      {/* ── Top Navbar ── */}
       <nav
-        className="fixed left-0 top-0 bottom-0 z-50 flex flex-col items-center py-5 gap-1"
         style={{
-          width: 'var(--dock-width)',
-          background: 'var(--dock-bg)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderRight: '1px solid var(--dock-border)',
+          position: 'fixed',
+          top: 0, left: 0, right: 0,
+          zIndex: 100,
+          height: 'var(--nav-height)',
+          background: 'var(--nav-bg)',
+          borderBottom: '1px solid var(--nav-border)',
         }}
       >
-        {/* Logo */}
-        <Link
-          to="/"
-          className="w-9 h-9 rounded-xl flex items-center justify-center mb-5 font-bold text-lg"
-          style={{
-            background: 'linear-gradient(135deg, #7c6fe0, #e06fbc)',
-            color: 'white',
-            boxShadow: '0 4px 20px rgba(124,111,224,0.4)',
-          }}
-          title="Nexus"
-        >
-          N
-        </Link>
+        <div className="mx-auto flex items-center h-full px-4 gap-2" style={{ maxWidth: 1128 }}>
 
-        {/* Main nav items */}
-        {navItems.slice(0, 5).map((item) => {
-          const isActive = location.pathname === item.href ||
-            (item.href !== '/' && location.pathname.startsWith(item.href));
+          {/* Logo */}
+          <Link
+            to="/"
+            className="flex-shrink-0 flex items-center justify-center font-bold text-white rounded"
+            style={{ width: 34, height: 34, background: '#0A66C2', fontSize: '1.1rem', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+            title="Nexus"
+          >
+            N
+          </Link>
+
+          {/* Search bar */}
+          <form
+            onSubmit={handleSearch}
+            className="hidden md:flex items-center gap-2 rounded-full px-3 py-1 ml-1"
+            style={{
+              background: 'var(--color-input-bg)',
+              border: '1px solid var(--color-border)',
+              maxWidth: 280,
+              width: '100%',
+            }}
+          >
+            <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-muted)' }} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search"
+              className="bg-transparent border-none outline-none text-sm w-full"
+              style={{ color: 'var(--color-text)', fontFamily: 'inherit' }}
+            />
+          </form>
+
+          {/* Center nav items */}
+          <div className="hidden md:flex items-center flex-1 justify-center">
+            {centerNavItems.map(item => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={`nav-item${checkActive(item.href) ? ' active' : ''}`}
+              >
+                <span className="relative inline-flex">
+                  <item.icon className="w-5 h-5" />
+                  {item.badge > 0 && (
+                    <span
+                      className="absolute -top-1 -right-2 min-w-[16px] h-4 flex items-center justify-center text-white rounded-full"
+                      style={{ background: '#cc1016', fontSize: '9px', fontWeight: 700, padding: '0 3px' }}
+                    >
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </span>
+                <span>{item.name}</span>
+              </Link>
+            ))}
+          </div>
+
+          {/* Right: Me dropdown + ThemeToggle */}
+          <div className="ml-auto md:ml-0 flex items-center flex-shrink-0">
+            {/* Vertical divider */}
+            <div className="hidden md:block w-px h-6 mx-2" style={{ background: 'var(--color-border)' }} />
+
+            {/* Me dropdown */}
+            <div ref={meRef} className="relative">
+              <button
+                className={`nav-item${meOpen ? ' active' : ''}`}
+                onClick={() => setMeOpen(o => !o)}
+                style={{ minWidth: 56 }}
+              >
+                {user?.profilePicture ? (
+                  <img
+                    src={user.profilePicture}
+                    alt={initials}
+                    className="rounded-full object-cover flex-shrink-0"
+                    style={{ width: 24, height: 24 }}
+                  />
+                ) : (
+                  <span
+                    className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+                    style={{ width: 24, height: 24, fontSize: 10, background: '#0A66C2' }}
+                  >
+                    {initials}
+                  </span>
+                )}
+                <span className="flex items-center gap-0.5">
+                  Me <ChevronDown className="w-3 h-3" />
+                </span>
+              </button>
+
+              {meOpen && (
+                <div
+                  className="absolute right-0 top-full mt-0.5 rounded-lg overflow-hidden z-50"
+                  style={{
+                    background: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+                    minWidth: 220,
+                  }}
+                >
+                  <div className="px-4 pt-3 pb-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                    <p className="font-bold text-sm leading-tight" style={{ color: 'var(--color-text)' }}>
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    {user?.headline && (
+                      <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--color-muted)' }}>
+                        {user.headline}
+                      </p>
+                    )}
+                    <Link
+                      to={`/profile/${user?.id}`}
+                      onClick={() => setMeOpen(false)}
+                      className="block mt-2.5 text-xs font-semibold text-center py-1.5 rounded-full border transition-colors"
+                      style={{ color: 'var(--color-accent)', borderColor: 'var(--color-accent)' }}
+                    >
+                      View Profile
+                    </Link>
+                  </div>
+                  <div className="py-1">
+                    <Link
+                      to="/settings"
+                      onClick={() => setMeOpen(false)}
+                      className="sp-hover flex items-center gap-3 px-4 py-2.5 text-sm"
+                      style={{ color: 'var(--color-text)', textDecoration: 'none' }}
+                    >
+                      <Settings className="w-4 h-4 flex-shrink-0" /> Settings
+                    </Link>
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setMeOpen(false)}
+                        className="sp-hover flex items-center gap-3 px-4 py-2.5 text-sm"
+                        style={{ color: '#cc1016', textDecoration: 'none' }}
+                      >
+                        <Shield className="w-4 h-4 flex-shrink-0" /> Admin
+                      </Link>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      className="sp-hover flex items-center gap-3 px-4 py-2.5 text-sm w-full text-left"
+                      style={{ color: 'var(--color-text)' }}
+                    >
+                      <LogOut className="w-4 h-4 flex-shrink-0" /> Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Theme toggle */}
+            <ThemeToggle />
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Mobile bottom tab bar ── */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-stretch justify-around"
+        style={{
+          height: 'var(--nav-height)',
+          background: 'var(--nav-bg)',
+          borderTop: '1px solid var(--nav-border)',
+        }}
+      >
+        {mobileNavItems.map(item => {
+          const active = checkActive(item.href);
           return (
             <Link
               key={item.name}
               to={item.href}
-              title={item.name}
-              className="relative w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200 group"
+              className="flex flex-col items-center justify-center flex-1 gap-0.5 relative"
               style={{
-                background: isActive ? 'rgba(124,111,224,0.18)' : 'transparent',
-                color: isActive ? '#9d94f0' : '#6a6a8a',
-                boxShadow: isActive ? 'inset 0 0 0 1px rgba(124,111,224,0.35)' : 'none',
-              }}
-              onMouseEnter={e => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.1)';
-                  (e.currentTarget as HTMLElement).style.color = '#9d94f0';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLElement).style.background = 'transparent';
-                  (e.currentTarget as HTMLElement).style.color = '#6a6a8a';
-                }
+                color: active ? 'var(--color-text)' : 'var(--color-muted)',
+                borderTop: active ? '2px solid var(--color-text)' : '2px solid transparent',
+                fontSize: 10,
+                fontWeight: 600,
+                textDecoration: 'none',
               }}
             >
-              <item.icon className="w-5 h-5" />
-              {item.badge && unreadMsg > 0 && (
-                <span
-                  className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 flex items-center justify-center text-white text-[8px] font-bold rounded-full px-0.5"
-                  style={{ background: '#e06fbc', border: '2px solid var(--color-bg)' }}
-                >
-                  {unreadMsg > 99 ? '99+' : unreadMsg}
-                </span>
-              )}
-              {/* Tooltip */}
-              <span
-                className="absolute left-full ml-2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
-                style={{
-                  background: 'var(--tooltip-bg)',
-                  border: '1px solid var(--dock-border)',
-                  color: 'var(--color-text)',
-                  zIndex: 60,
-                }}
-              >
-                {item.name}
+              <span className="relative inline-flex">
+                <item.icon className="w-5 h-5" />
+                {item.badge > 0 && (
+                  <span
+                    className="absolute -top-1 -right-2 min-w-[14px] h-3.5 flex items-center justify-center text-white rounded-full"
+                    style={{ background: '#cc1016', fontSize: '9px', fontWeight: 700, padding: '0 2px' }}
+                  >
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
               </span>
+              <span>{item.name}</span>
             </Link>
           );
         })}
-
-        {/* Divider */}
-        <div className="w-7 h-px my-1" style={{ background: 'var(--dock-border)' }} />
-
-        {/* Secondary nav */}
-        {navItems.slice(5).map((item) => (
-          <Link
-            key={item.name}
-            to={item.href}
-            title={item.name}
-            className="relative w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200 group"
-            style={{ color: '#4a4a6a' }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.1)';
-              (e.currentTarget as HTMLElement).style.color = '#9d94f0';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = 'transparent';
-              (e.currentTarget as HTMLElement).style.color = '#4a4a6a';
-            }}
-          >
-            <item.icon className="w-5 h-5" />
-            <span
-              className="absolute left-full ml-2 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity"
-              style={{
-                background: 'var(--tooltip-bg)',
-                border: '1px solid var(--dock-border)',
-                color: 'var(--color-text)',
-                zIndex: 60,
-              }}
-            >
-              {item.name}
-            </span>
-          </Link>
-        ))}
-
-        {/* Bottom: settings + avatar */}
-        <div className="mt-auto flex flex-col items-center gap-2">
-          <Link
-            to="/settings"
-            title="Settings"
-            className="w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200"
-            style={{ color: '#4a4a6a' }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = 'rgba(124,111,224,0.1)';
-              (e.currentTarget as HTMLElement).style.color = '#9d94f0';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = 'transparent';
-              (e.currentTarget as HTMLElement).style.color = '#4a4a6a';
-            }}
-          >
-            <Settings className="w-5 h-5" />
-          </Link>
-
-          {user?.role === 'admin' && (
-            <Link
-              to="/admin"
-              title="Admin"
-              className="w-11 h-11 flex items-center justify-center rounded-xl transition-all duration-200"
-              style={{ color: '#e05555' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = 'rgba(224,85,85,0.1)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
-            >
-              <Shield className="w-5 h-5" />
-            </Link>
-          )}
-
-          {/* User avatar button */}
-          <Link
-            to={`/profile/${user?.id}`}
-            title={user?.fullName ?? 'Profile'}
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #1e1830, #2a2240)',
-              border: '1.5px solid rgba(124,111,224,0.45)',
-              color: '#9d94f0',
-            }}
-          >
-            {user?.profilePicture ? (
-              <img src={user.profilePicture} alt={initials} className="w-full h-full object-cover rounded-xl" />
-            ) : (
-              initials
-            )}
-          </Link>
-        </div>
-      </nav>
-
-      {/* ── Top Header ── */}
-      <header
-        className="fixed top-0 right-0 z-40 flex items-center px-5 gap-3"
-        style={{
-          left: 'var(--dock-width)',
-          height: 'var(--header-height)',
-          background: 'var(--dock-bg)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderBottom: '1px solid var(--dock-border)',
-        }}
-      >
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-bold" style={{ color: '#9d94f0', letterSpacing: '-0.3px' }}>
-            Nexus
-          </span>
-          <span style={{ color: 'var(--color-dim)' }}>/</span>
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
-            {pageLabel}
-          </span>
-        </div>
-
-        {/* Search */}
-        <AnimatePresence>
-          {searchOpen ? (
-            <motion.form
-              onSubmit={handleSearch}
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 280, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center gap-2 rounded-xl overflow-hidden ml-auto"
-              style={{
-                background: 'var(--color-surface)',
-                border: '1px solid rgba(124,111,224,0.4)',
-                padding: '6px 14px',
-              }}
-            >
-              <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-muted)' }} />
-              <input
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Escape' && (setSearchOpen(false), setSearchQuery(''))}
-                placeholder="Search people, posts, jobs…"
-                className="flex-1 bg-transparent border-none outline-none text-sm"
-                style={{ color: 'var(--color-text)', fontFamily: 'inherit' }}
-              />
-              <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(''); }}>
-                <X className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
-              </button>
-            </motion.form>
-          ) : (
-            <button
-              className="ml-auto w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
-              style={{
-                background: "var(--color-card)",
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-muted)',
-              }}
-              onClick={() => setSearchOpen(true)}
-              title="Search"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          )}
-        </AnimatePresence>
-
-        {/* Right actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Notifications dropdown */}
-          <NotificationsDropdown badgeCount={unreadNotif} />
-
-          {/* Theme toggle */}
-          <ThemeToggle />
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200"
-            style={{
-              background: "var(--color-card)",
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-muted)',
-            }}
-            title="Logout"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </div>
-      </header>
+      </div>
 
       {/* ── Page Content ── */}
-      <main
-        className="relative z-10 min-h-screen"
-        style={{
-          marginLeft: 'var(--dock-width)',
-          marginTop: 'var(--header-height)',
-          padding: '24px',
-        }}
-      >
+      <main style={{ paddingTop: 'var(--nav-height)' }}>
         <Outlet />
       </main>
     </div>

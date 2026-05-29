@@ -23,8 +23,14 @@ const configSchema = z.object({
   // JWT
   JWT_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
-  JWT_EXPIRES_IN: z.string().default('15m'),
+  JWT_EXPIRES_IN: z.string().default('20m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+
+  // CSRF (separate secret from JWT — required, must never fall back to JWT_SECRET)
+  CSRF_SECRET: z.string().min(32),
+
+  // Resume encryption key (64 hex chars = 32 bytes AES-256)
+  RESUME_ENCRYPTION_KEY: z.string().length(64).optional(),
 
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
@@ -45,6 +51,17 @@ const configSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CALLBACK_URL: z.string().default('http://localhost/api/auth/google/callback'),
+
+  // Session (OAuth handshake only) — required, no default
+  SESSION_SECRET: z.string().min(32),
+
+  // Cookie parser signing secret — separate from JWT
+  COOKIE_SECRET: z.string().min(32),
 });
 
 // Validate and parse environment variables
@@ -91,6 +108,9 @@ export default {
     expiresIn: config.JWT_EXPIRES_IN,
     refreshExpiresIn: config.JWT_REFRESH_EXPIRES_IN,
   },
+  csrf: {
+    secret: config.CSRF_SECRET,
+  },
   cors: {
     origin: config.CORS_ORIGIN.split(',').map((o) => o.trim()),
     clientUrl: config.CLIENT_URL,
@@ -112,5 +132,17 @@ export default {
       pass: config.SMTP_PASS,
     },
     from: config.EMAIL_FROM,
+  },
+  google: {
+    clientId: config.GOOGLE_CLIENT_ID,
+    clientSecret: config.GOOGLE_CLIENT_SECRET,
+    callbackUrl: config.GOOGLE_CALLBACK_URL,
+    enabled: !!(config.GOOGLE_CLIENT_ID && config.GOOGLE_CLIENT_SECRET),
+  },
+  session: {
+    secret: config.SESSION_SECRET,
+  },
+  cookie: {
+    secret: config.COOKIE_SECRET,
   },
 };

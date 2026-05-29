@@ -8,12 +8,14 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IMessage extends Document {
   conversation: mongoose.Types.ObjectId;
   sender: mongoose.Types.ObjectId;
-  recipients: Array<{
+  readBy: Array<{
     user: mongoose.Types.ObjectId;
     readAt?: Date;
   }>;
   content: string;
   encrypted: boolean;
+  signature?: string;       // base64-encoded ECDSA signature over encrypted content
+  signerPublicKey?: string; // sender's P-256 public key (JWK JSON string)
   attachments?: Array<{
     type: 'image' | 'file';
     url: string;
@@ -40,7 +42,7 @@ const messageSchema = new Schema<IMessage>(
       required: true,
       index: true,
     },
-    recipients: [
+    readBy: [
       {
         user: {
           type: Schema.Types.ObjectId,
@@ -61,6 +63,12 @@ const messageSchema = new Schema<IMessage>(
     encrypted: {
       type: Boolean,
       default: true,
+    },
+    signature: {
+      type: String,
+    },
+    signerPublicKey: {
+      type: String,
     },
     attachments: [
       {
@@ -99,28 +107,31 @@ const messageSchema = new Schema<IMessage>(
 // Indexes for performance
 messageSchema.index({ conversation: 1, createdAt: -1 });
 messageSchema.index({ sender: 1, createdAt: -1 });
+messageSchema.index({ 'readBy.user': 1 });
 
 // Virtual for checking if all recipients have read
 messageSchema.virtual('isFullyRead').get(function () {
-  return this.recipients.every((r) => r.readAt !== undefined);
+  return this.readBy.every((r) => r.readAt !== undefined);
 });
 
 // Method to mark as read
 messageSchema.methods.markAsRead = function (userId: mongoose.Types.ObjectId) {
-  const recipient = this.recipients.find(
+  const entry = this.readBy.find(
     (r: { user: mongoose.Types.ObjectId; readAt?: Date }) => r.user.toString() === userId.toString()
   );
-  if (recipient) {
-    recipient.readAt = new Date();
+  if (entry) {
+    entry.readAt = new Date();
+  } else {
+    this.readBy.push({ user: userId, readAt: new Date() });
   }
 };
 
 // Method to check if read by user
 messageSchema.methods.isReadBy = function (userId: mongoose.Types.ObjectId): boolean {
-  const recipient = this.recipients.find(
+  const entry = this.readBy.find(
     (r: { user: mongoose.Types.ObjectId; readAt?: Date }) => r.user.toString() === userId.toString()
   );
-  return recipient?.readAt !== undefined;
+  return entry?.readAt !== undefined;
 };
 
 // Soft delete

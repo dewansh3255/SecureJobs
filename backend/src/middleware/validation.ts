@@ -141,6 +141,11 @@ export const profileUpdateValidation = [
     .trim()
     .isLength({ max: 50 })
     .withMessage('Industry must be less than 50 characters'),
+  body('website')
+    .optional()
+    .trim()
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('Website must be a valid http:// or https:// URL'),
   handleValidationErrors,
 ];
 

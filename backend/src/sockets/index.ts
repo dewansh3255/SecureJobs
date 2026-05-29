@@ -11,6 +11,7 @@ import { getRedisClient } from '../config/redis';
 import Message from '../models/Message';
 import Conversation from '../models/Conversation';
 import Notification from '../models/Notification';
+import User from '../models/User';
 
 interface JwtPayload {
   id: string;
@@ -29,6 +30,7 @@ export const initializeSocketIO = (io: Server) => {
   const redisClient = getRedisClient();
   if (redisClient) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { createAdapter } = require('@socket.io/redis-adapter');
       const pubClient = redisClient.duplicate();
       const subClient = redisClient.duplicate();
@@ -41,46 +43,55 @@ export const initializeSocketIO = (io: Server) => {
       logger.warn('Socket.IO Redis adapter not available:', error);
     }
   }
-
-  io.on('connection', (socket: Socket) => {
-    logger.debug(`Socket connected: ${socket.id}`);
-
-    // ===========================================
-    // Authentication
-    // ===========================================
-    socket.on('authenticate', async (token: string, callback: (success: boolean, error?: string) => void) => {
-      try {
-        const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
-
-        // Store user mapping
-        onlineUsers.set(decoded.id, socket.id);
-        socket.data.userId = decoded.id;
-
-        // Join user's personal room
-        socket.join(`user:${decoded.id}`);
-
-        logger.info(`User ${decoded.email} authenticated on socket ${socket.id}`);
-        callback(true);
-
-        // Broadcast user online status
-        socket.broadcast.emit('user:online', { userId: decoded.id });
-      } catch (error) {
-        logger.warn('Socket authentication failed:', error);
-        callback(false, 'Invalid token');
-      }
+  // ===========================================
+  // Cookie-based authentication middleware
+  // Browser sends HttpOnly cookies automatically with withCredentials:true
+  // ===========================================
+  io.use((socket, next) => {
+    const cookieHeader = socket.handshake.headers.cookie || '';
+    // Parse cookies manually — no dep needed
+    const cookies: Record<string, string> = {};
+    cookieHeader.split(';').forEach(pair => {
+      const idx = pair.indexOf('=');
+      if (idx < 0) return;
+      const k = pair.slice(0, idx).trim();
+      const v = pair.slice(idx + 1).trim();
+      try { cookies[k] = decodeURIComponent(v); } catch { cookies[k] = v; }
     });
 
-    // ===========================================
-    // Messaging Events
-    // ===========================================
+    const token = cookies['accessToken'];
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+    try {
+      const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
+      socket.data.userId = decoded.id;
+      next();
+    } catch {
+      next(new Error('Invalid or expired token'));
+    }
+  });
+
+  io.on('connection', (socket: Socket) => {
+    const userId = socket.data.userId as string;
+    logger.debug(`Socket connected: ${socket.id} user: ${userId}`);
+
+    // Track online user and join personal room
+    onlineUsers.set(userId, socket.id);
+    socket.join(`user:${userId}`);
+    socket.broadcast.emit('user:online', { userId });
+
+
     socket.on('message:send', async (data: { conversationId: string; content: string }, callback) => {
       try {
-        const userId = socket.data.userId;
-        if (!userId) {
-          return callback?.({ success: false, error: 'Not authenticated' });
+        // Input validation — guard against oversized or missing content
+        if (!data?.conversationId || typeof data.content !== 'string') {
+          return callback?.({ success: false, error: 'Invalid message data' });
+        }
+        if (data.content.trim().length === 0 || data.content.length > 5000) {
+          return callback?.({ success: false, error: 'Message must be between 1 and 5000 characters' });
         }
 
-        // Verify sender is a participant of this conversation
         const conversation = await Conversation.findById(data.conversationId).lean();
         if (!conversation) {
           return callback?.({ success: false, error: 'Conversation not found' });
@@ -90,17 +101,13 @@ export const initializeSocketIO = (io: Server) => {
           return callback?.({ success: false, error: 'Not a participant' });
         }
 
-        // Persist message to MongoDB
-        const recipients = participantIds
-          .filter((pid) => pid !== userId)
-          .map((pid) => ({ user: pid }));
-
+        // Persist message to MongoDB — readBy includes the sender immediately
         const saved = await Message.create({
           conversation: data.conversationId,
           sender: userId,
-          recipients,
           content: data.content.trim(),
           encrypted: false,
+          readBy: [{ user: userId, readAt: new Date() }],
         });
 
         // Update conversation's lastMessage + lastMessageAt + messageCount
@@ -120,7 +127,6 @@ export const initializeSocketIO = (io: Server) => {
           sender: saved.sender,
           content: saved.content,
           createdAt: saved.createdAt,
-          recipients: saved.recipients,
         });
 
         // Push in-app notification to offline recipients
@@ -158,9 +164,24 @@ export const initializeSocketIO = (io: Server) => {
       }
     });
 
-    socket.on('conversation:join', (conversationId: string) => {
-      socket.join(`conversation:${conversationId}`);
-      logger.debug(`Socket ${socket.id} joined conversation ${conversationId}`);
+    socket.on('conversation:join', async (conversationId: string) => {
+      try {
+        // Verify the user is actually a participant before joining
+        const conv = await Conversation.findOne({
+          _id: conversationId,
+          participants: userId,
+        }).lean();
+
+        if (!conv) {
+          logger.warn(`Socket ${socket.id} tried to join unauthorized conversation ${conversationId}`);
+          return;
+        }
+
+        socket.join(`conversation:${conversationId}`);
+        logger.debug(`Socket ${socket.id} joined conversation ${conversationId}`);
+      } catch (err) {
+        logger.error('Error joining conversation room:', err);
+      }
     });
 
     socket.on('conversation:leave', (conversationId: string) => {
@@ -218,6 +239,8 @@ export const initializeSocketIO = (io: Server) => {
       const userId = socket.data.userId;
       if (userId) {
         onlineUsers.delete(userId);
+        // Update lastSeen timestamp
+        User.findByIdAndUpdate(userId, { lastSeen: new Date() }).catch(() => {});
         logger.info(`User ${userId} disconnected from socket ${socket.id}`);
 
         // Broadcast user offline status

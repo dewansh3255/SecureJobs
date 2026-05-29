@@ -6,13 +6,13 @@ import { toast } from 'sonner';
 import {
   Pencil, Plus, X, Camera, MapPin, Globe,
   GraduationCap, UserCheck, UserPlus, Loader2,
-  Building2, Calendar, FileText, Upload, Trash2, Download, Lock
+  Building2, Calendar, FileText, Upload, Trash2, Download, Lock, Key
 } from 'lucide-react';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
 import { Button } from '@components/ui/Button';
-import { Avatar } from '@components/ui/Avatar';
 import { Badge } from '@components/ui/Badge';
+import { encryptResume, decryptResume, hasResumeKey } from '@services/crypto';
 
 /* ─── Types ─── */
 interface Experience {
@@ -20,8 +20,8 @@ interface Experience {
   title: string;
   company: string;
   location?: string;
-  startDate: string;
-  endDate?: string;
+  from: string;
+  to?: string;
   current: boolean;
   description?: string;
 }
@@ -29,9 +29,9 @@ interface Education {
   _id?: string;
   school: string;
   degree: string;
-  fieldOfStudy: string;
-  startDate: string;
-  endDate?: string;
+  field: string;
+  from: string;
+  to?: string;
   current: boolean;
   description?: string;
 }
@@ -60,9 +60,6 @@ interface ProfileData {
     originalName: string;
     mimeType: string;
     uploadedAt: string;
-    parsedSkills?: string[];
-    parsedTitles?: string[];
-    parsedEducation?: string[];
   };
 }
 
@@ -85,16 +82,28 @@ function ProfileSkeleton() {
 }
 
 /* ─── Section wrapper ─── */
-function Section({ title, onAdd, children }: { title: string; onAdd?: () => void; children: React.ReactNode }) {
+function Section({ title, onAdd, onEdit, children }: {
+  title: string;
+  onAdd?: () => void;
+  onEdit?: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="sp-card rounded-2xl p-6">
+    <div className="sp-card p-6" style={{ borderRadius: 8 }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>{title}</h2>
-        {onAdd && (
-          <button onClick={onAdd} className="p-1.5 rounded-xl hover-shade transition">
-            <Plus className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
-          </button>
-        )}
+        <div className="flex gap-1">
+          {onEdit && (
+            <button onClick={onEdit} className="p-1.5 rounded-lg hover-shade transition">
+              <Pencil className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
+            </button>
+          )}
+          {onAdd && (
+            <button onClick={onAdd} className="p-1.5 rounded-lg hover-shade transition">
+              <Plus className="w-5 h-5" style={{ color: 'var(--color-muted)' }} />
+            </button>
+          )}
+        </div>
       </div>
       {children}
     </div>
@@ -116,6 +125,7 @@ function EditBasicModal({ profile, onClose }: { profile: ProfileData; onClose: (
     lastName: profile.lastName,
     headline: profile.headline ?? '',
     location: profile.location ?? '',
+    phone: (profile as any).phone ?? '',
     website: profile.website ?? '',
     industry: profile.industry ?? '',
     about: profile.about ?? '',
@@ -134,6 +144,7 @@ function EditBasicModal({ profile, onClose }: { profile: ProfileData; onClose: (
         </div>
         <LabelInput label="Headline" value={form.headline} onChange={v => setForm(f => ({...f, headline: v}))} />
         <LabelInput label="Location" value={form.location} onChange={v => setForm(f => ({...f, location: v}))} />
+        <LabelInput label="Phone" value={form.phone} onChange={v => setForm(f => ({...f, phone: v}))} />
         <LabelInput label="Website" value={form.website} onChange={v => setForm(f => ({...f, website: v}))} />
         <LabelInput label="Industry" value={form.industry} onChange={v => setForm(f => ({...f, industry: v}))} />
         <div>
@@ -154,7 +165,7 @@ function EditBasicModal({ profile, onClose }: { profile: ProfileData; onClose: (
 /* ─── Experience modal ─── */
 function ExperienceModal({ item, onClose }: { item?: Experience; onClose: () => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState<Experience>(item ?? { title: '', company: '', startDate: '', current: false });
+  const [form, setForm] = useState<Experience>(item ?? { title: '', company: '', from: '', current: false });
   const mut = useMutation({
     mutationFn: async () => {
       const { data: me } = await apiService.users.me();
@@ -177,11 +188,11 @@ function ExperienceModal({ item, onClose }: { item?: Experience; onClose: () => 
         <LabelInput label="Company *" value={form.company} onChange={v => setForm(f => ({...f, company: v}))} />
         <LabelInput label="Location" value={form.location ?? ''} onChange={v => setForm(f => ({...f, location: v}))} />
         <div className="grid grid-cols-2 gap-3">
-          <LabelInput label="Start Date" type="month" value={form.startDate} onChange={v => setForm(f => ({...f, startDate: v}))} />
-          {!form.current && <LabelInput label="End Date" type="month" value={form.endDate ?? ''} onChange={v => setForm(f => ({...f, endDate: v}))} />}
+          <LabelInput label="Start Date" type="month" value={form.from} onChange={v => setForm(f => ({...f, from: v}))} />
+          {!form.current && <LabelInput label="End Date" type="month" value={form.to ?? ''} onChange={v => setForm(f => ({...f, to: v}))} />}
         </div>
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--color-muted)' }}>
-          <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({...f, current: e.target.checked, endDate: undefined}))}
+          <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({...f, current: e.target.checked, to: undefined}))}
             className="w-4 h-4 accent-linkedin-600" />
           I currently work here
         </label>
@@ -194,7 +205,7 @@ function ExperienceModal({ item, onClose }: { item?: Experience; onClose: () => 
 /* ─── Education modal ─── */
 function EducationModal({ item, onClose }: { item?: Education; onClose: () => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState<Education>(item ?? { school: '', degree: '', fieldOfStudy: '', startDate: '', current: false });
+  const [form, setForm] = useState<Education>(item ?? { school: '', degree: '', field: '', from: '', current: false });
   const mut = useMutation({
     mutationFn: async () => {
       const { data: me } = await apiService.users.me();
@@ -212,13 +223,13 @@ function EducationModal({ item, onClose }: { item?: Education; onClose: () => vo
       <div className="space-y-3">
         <LabelInput label="School *" value={form.school} onChange={v => setForm(f => ({...f, school: v}))} />
         <LabelInput label="Degree *" value={form.degree} onChange={v => setForm(f => ({...f, degree: v}))} />
-        <LabelInput label="Field of Study" value={form.fieldOfStudy} onChange={v => setForm(f => ({...f, fieldOfStudy: v}))} />
+        <LabelInput label="Field of Study" value={form.field} onChange={v => setForm(f => ({...f, field: v}))} />
         <div className="grid grid-cols-2 gap-3">
-          <LabelInput label="Start Date" type="month" value={form.startDate} onChange={v => setForm(f => ({...f, startDate: v}))} />
-          {!form.current && <LabelInput label="End Date" type="month" value={form.endDate ?? ''} onChange={v => setForm(f => ({...f, endDate: v}))} />}
+          <LabelInput label="Start Date" type="month" value={form.from} onChange={v => setForm(f => ({...f, from: v}))} />
+          {!form.current && <LabelInput label="End Date" type="month" value={form.to ?? ''} onChange={v => setForm(f => ({...f, to: v}))} />}
         </div>
         <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--color-muted)' }}>
-          <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({...f, current: e.target.checked, endDate: undefined}))}
+          <input type="checkbox" checked={form.current} onChange={e => setForm(f => ({...f, current: e.target.checked, to: undefined}))}
             className="w-4 h-4 accent-linkedin-600" />
           Currently enrolled
         </label>
@@ -232,7 +243,7 @@ function EducationModal({ item, onClose }: { item?: Education; onClose: () => vo
 function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95 }}
@@ -332,37 +343,109 @@ export default function ProfilePage() {
   const [showResumeTotpModal, setShowResumeTotpModal] = useState(false);
   const [resumeTotpCode, setResumeTotpCode] = useState('');
   const [resumeTotpLoading, setResumeTotpLoading] = useState(false);
+  const [showPassphraseModal, setShowPassphraseModal] = useState(false);
+  const [passphraseInput, setPassphraseInput] = useState('');
+  const [passphraseMode, setPassphraseMode] = useState<'upload' | 'download'>('upload');
+  const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
+
+  /** Called when user selects a file — shows passphrase modal if key not cached */
+  const handleResumeFileSelect = (file: File) => {
+    setPendingUploadFile(file);
+    setPassphraseMode('upload');
+    setPassphraseInput('');
+    setShowPassphraseModal(true);
+  };
+
+  /** Encrypt file in browser, then upload ciphertext to server */
+  const handleResumeEncryptAndUpload = async (passphrase: string, file: File) => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const { ciphertext, salt, iv } = await encryptResume(passphrase, buffer);
+      const ciphertextAB = new ArrayBuffer(ciphertext.length);
+      new Uint8Array(ciphertextAB).set(ciphertext);
+      const blob = new Blob([ciphertextAB], { type: 'application/octet-stream' });
+      const fd = new FormData();
+      fd.append('resume', blob, 'resume.enc');
+      fd.append('salt', salt);
+      fd.append('iv', iv);
+      fd.append('originalName', file.name);
+      fd.append('mimeType', file.type);
+      await apiService.users.uploadResume(fd);
+      qc.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Resume encrypted and uploaded (zero-knowledge)');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Upload failed');
+    }
+  };
+
+  const handlePassphraseConfirm = async () => {
+    const passphrase = passphraseInput.trim();
+    if (!passphrase) { toast.error('Passphrase cannot be empty'); return; }
+    setShowPassphraseModal(false);
+    setPassphraseInput('');
+    if (passphraseMode === 'upload' && pendingUploadFile) {
+      await handleResumeEncryptAndUpload(passphrase, pendingUploadFile);
+      setPendingUploadFile(null);
+    } else if (passphraseMode === 'download') {
+      await doResumeDownload(passphrase);
+    }
+  };
 
   const handleResumeDownload = async () => {
     if (!resumeTotpCode.trim() || resumeTotpCode.length !== 6) {
       toast.error('Enter your 6-digit TOTP code');
       return;
     }
+    setShowResumeTotpModal(false);
+    // Check whether the derived key is cached — if not, ask for passphrase
+    if (!hasResumeKey()) {
+      setPassphraseMode('download');
+      setPassphraseInput('');
+      setShowPassphraseModal(true);
+    } else {
+      await doResumeDownload(null);
+    }
+  };
+
+  const doResumeDownload = async (passphrase: string | null) => {
     setResumeTotpLoading(true);
     try {
-      // Build download URL with TOTP code, open in new tab to trigger browser download
-      const url = `/api/users/me/resume?totp=${encodeURIComponent(resumeTotpCode.trim())}`;
+      const resp = await fetch(
+        `/api/users/me/resume?totp=${encodeURIComponent(resumeTotpCode.trim())}`,
+        { credentials: 'include' }
+      );
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        throw new Error(data.message ?? `Download failed (${resp.status})`);
+      }
+
+      // Read ZK headers before consuming body
+      const saltHex = resp.headers.get('x-resume-salt') ?? '';
+      const ivHex = resp.headers.get('x-resume-iv') ?? '';
+      if (!saltHex || !ivHex) throw new Error('Server did not return encryption metadata');
+
+      const ciphertextBuf = await resp.arrayBuffer();
+      const plainBuf = await decryptResume(passphrase, saltHex, ivHex, ciphertextBuf);
+
+      const mimeType = profile?.resume?.mimeType ?? 'application/octet-stream';
+      const blob = new Blob([plainBuf], { type: mimeType });
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       link.download = profile?.resume?.originalName ?? 'resume';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setShowResumeTotpModal(false);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
       setResumeTotpCode('');
+      toast.success('Resume decrypted and downloaded');
+    } catch (err: any) {
+      toast.error(err.message ?? 'Download failed');
     } finally {
       setResumeTotpLoading(false);
     }
   };
 
-  const uploadResumeMut = useMutation({
-    mutationFn: (file: File) => {
-      const fd = new FormData(); fd.append('resume', file);
-      return apiService.users.uploadResume(fd);
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Resume uploaded and encrypted'); },
-    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Upload failed'),
-  });
   const deleteResumeMut = useMutation({
     mutationFn: () => apiService.users.deleteResume(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Resume deleted'); },
@@ -378,106 +461,147 @@ export default function ProfilePage() {
   );
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 space-y-4">
-      {/* Cover + Avatar */}
-      <div>
-        <div className="relative h-44 rounded-2xl overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #7c6fe0 0%, #e06fbc 100%)' }}>
-          {profile.coverImage && (
-            <img src={profile.coverImage} alt="cover" className="w-full h-full object-cover" />
-          )}
+    <div className="max-w-[860px] mx-auto px-4 pt-6 pb-20 space-y-3">
+
+      {/* ── Top Card: banner + avatar + info + actions ── */}
+      <div className="sp-card overflow-hidden" style={{ borderRadius: 8 }}>
+        {/* Banner */}
+        <div
+          className="relative"
+          style={{
+            height: 200,
+            background: profile.coverImage
+              ? undefined
+              : 'linear-gradient(135deg, #0073B1 0%, #00A0DC 55%, #00C5D4 100%)',
+            backgroundImage: profile.coverImage ? `url(${profile.coverImage})` : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
           {isOwnProfile && (
             <>
               <button
                 onClick={() => coverInputRef.current?.click()}
-                className="absolute bottom-3 right-3 p-2 rounded-xl transition"
-                style={{ background: 'rgba(0,0,0,0.5)' }}
+                className="absolute top-3 right-3 p-2 rounded-full transition"
+                style={{ background: 'rgba(0,0,0,0.45)', zIndex: 3 }}
+                title="Change cover photo"
               >
-                <Camera className="w-4 h-4 text-white" />
+                {uploadCoverMut.isPending
+                  ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                  : <Camera className="w-4 h-4 text-white" />}
               </button>
               <input
                 ref={coverInputRef} type="file" accept="image/*" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) uploadCoverMut.mutate(f); }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) { uploadCoverMut.mutate(f); e.target.value = ''; } }}
               />
             </>
           )}
         </div>
 
-        <div className="sp-card rounded-t-none rounded-b-2xl p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start">
+        {/* Avatar + action buttons row (overlapping banner) */}
+        <div className="px-6 pb-5">
+          {/* position:relative + zIndex:2 ensures this row stays ABOVE the banner (position:relative, z:auto) */}
+          <div className="flex items-end justify-between" style={{ marginTop: -60, position: 'relative', zIndex: 2 }}>
             {/* Avatar */}
-            <div className="relative -mt-20 shrink-0">
-              <Avatar
-                name={profile.fullName}
-                src={profile.profilePicture}
-                size="xl"
-                className="ring-4 w-24 h-24 text-2xl"
-                style={{ '--tw-ring-color': 'var(--color-bg)' } as React.CSSProperties}
-              />
+            <div className="relative" style={{ zIndex: 1 }}>
+              {/* Custom 120px circle — Avatar size props go to <img>, so we render directly */}
+              <div style={{
+                width: 120, height: 120, borderRadius: '50%', overflow: 'hidden',
+                border: '4px solid var(--color-card)',
+                background: 'linear-gradient(135deg, var(--color-accent, #0073B1), #00A0DC)',
+                flexShrink: 0,
+              }}>
+                {profile.profilePicture ? (
+                  <img
+                    src={profile.profilePicture}
+                    alt={profile.fullName}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 40, fontWeight: 700 }}>
+                    {profile.fullName.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                  </div>
+                )}
+              </div>
               {isOwnProfile && (
                 <>
                   <button
                     onClick={() => avatarInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 p-1.5 rounded-full shadow transition"
-                    style={{ background: 'var(--color-accent)' }}
+                    className="absolute bottom-1 right-1 p-1.5 rounded-full shadow-md transition"
+                    style={{ background: 'var(--color-accent)', zIndex: 3 }}
                   >
-                    {uploadAvatarMut.isPending ? <Loader2 className="w-3 h-3 text-white animate-spin" /> : <Camera className="w-3 h-3 text-white" />}
+                    {uploadAvatarMut.isPending
+                      ? <Loader2 className="w-3 h-3 text-white animate-spin" />
+                      : <Camera className="w-3 h-3 text-white" />}
                   </button>
                   <input
                     ref={avatarInputRef} type="file" accept="image/*" className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatarMut.mutate(f); }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { uploadAvatarMut.mutate(f); e.target.value = ''; } }}
                   />
                 </>
               )}
             </div>
 
-            {/* Info */}
-            <div className="flex-1 min-w-0 sm:mt-0 mt-2">
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{profile.fullName}</h1>
-              {profile.headline && (
-                <p className="mt-0.5" style={{ color: 'var(--color-muted)' }}>{profile.headline}</p>
-              )}
-              {profile.location && (
-                <p className="text-sm flex items-center gap-1 mt-1" style={{ color: 'var(--color-dim)' }}>
-                  <MapPin className="w-3.5 h-3.5" /> {profile.location}
-                </p>
-              )}
-              {profile.website && (
-                <a href={profile.website} target="_blank" rel="noopener noreferrer"
-                  className="text-sm flex items-center gap-1 mt-0.5 hover:underline"
-                  style={{ color: 'var(--color-accent)' }}>
-                  <Globe className="w-3.5 h-3.5" /> {profile.website.replace(/^https?:\/\//, '')}
-                </a>
-              )}
-              <div className="flex gap-4 mt-2 text-sm">
-                <span style={{ color: 'var(--color-muted)' }}>
-                  <strong style={{ color: 'var(--color-text)' }}>{profile.connections}</strong> connections
-                </span>
-                <span style={{ color: 'var(--color-muted)' }}>
-                  <strong style={{ color: 'var(--color-text)' }}>{profile.followers}</strong> followers
-                </span>
-              </div>
-            </div>
-
             {/* Action buttons */}
-            <div className="flex gap-2 shrink-0">
+            <div className="flex gap-2 pb-1">
               {isOwnProfile ? (
-                <Button variant="outline" leftIcon={<Pencil className="w-4 h-4" />} onClick={() => setModal({ type: 'basic' })}>Edit</Button>
+                <Button variant="outline" leftIcon={<Pencil className="w-4 h-4" />} onClick={() => setModal({ type: 'basic' })}>
+                  Edit profile
+                </Button>
               ) : profile.isConnected ? (
                 <Button variant="outline" leftIcon={<UserCheck className="w-4 h-4" />} disabled>Connected</Button>
               ) : profile.isPending ? (
                 <Button variant="outline" disabled>Request Sent</Button>
               ) : (
-                <Button leftIcon={<UserPlus className="w-4 h-4" />} onClick={() => connectMut.mutate()} isLoading={connectMut.isPending}>Connect</Button>
+                <Button leftIcon={<UserPlus className="w-4 h-4" />} onClick={() => connectMut.mutate()} isLoading={connectMut.isPending}>
+                  Connect
+                </Button>
               )}
+            </div>
+          </div>
+
+          {/* Name · headline · location · stats */}
+          <div className="mt-3">
+            <h1 className="text-2xl font-bold leading-tight" style={{ color: 'var(--color-text)' }}>
+              {profile.fullName}
+            </h1>
+            {profile.headline && (
+              <p className="mt-0.5 text-base" style={{ color: 'var(--color-muted)' }}>{profile.headline}</p>
+            )}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-sm" style={{ color: 'var(--color-dim)' }}>
+              {profile.location && (
+                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{profile.location}</span>
+              )}
+              {profile.industry && <span>{profile.industry}</span>}
+              {profile.website && (
+                <a
+                  href={profile.website} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 hover:underline"
+                  style={{ color: 'var(--color-accent)' }}
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  {profile.website.replace(/^https?:\/\//, '')}
+                </a>
+              )}
+            </div>
+            <div className="flex gap-4 mt-2 text-sm">
+              <span className="font-semibold cursor-pointer hover:underline" style={{ color: 'var(--color-accent)' }}>
+                {profile.connections} connections
+              </span>
+              <span style={{ color: 'var(--color-muted)' }}>
+                <strong style={{ color: 'var(--color-text)' }}>{profile.followers}</strong> followers
+              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* About */}
+      {/* ── About ── */}
       {(profile.about || isOwnProfile) && (
-        <Section title="About" onAdd={isOwnProfile ? () => setModal({ type: 'basic' }) : undefined}>
+        <Section
+          title="About"
+          onEdit={isOwnProfile ? () => setModal({ type: 'basic' }) : undefined}
+        >
           {profile.about ? (
             <p className="text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }}>{profile.about}</p>
           ) : (
@@ -486,7 +610,7 @@ export default function ProfilePage() {
         </Section>
       )}
 
-      {/* Experience */}
+      {/* ── Experience ── */}
       <Section title="Experience" onAdd={isOwnProfile ? () => setModal({ type: 'exp' }) : undefined}>
         {profile.experience.length === 0 ? (
           <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>No experience added</p>
@@ -494,18 +618,22 @@ export default function ProfilePage() {
           <div className="space-y-5">
             {profile.experience.map((exp, i) => (
               <div key={exp._id ?? i} className="flex gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--color-bg)' }}>
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+                >
                   <Building2 className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold" style={{ color: 'var(--color-text)' }}>{exp.title}</p>
-                      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{exp.company}{exp.location && ` · ${exp.location}`}</p>
+                      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                        {exp.company}{exp.location && ` · ${exp.location}`}
+                      </p>
                       <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
                         <Calendar className="w-3 h-3" />
-                        {fmtDate(exp.startDate)} – {exp.current ? 'Present' : fmtDate(exp.endDate)}
+                        {fmtDate(exp.from)} – {exp.current ? 'Present' : fmtDate(exp.to)}
                       </p>
                     </div>
                     {isOwnProfile && (
@@ -514,7 +642,9 @@ export default function ProfilePage() {
                       </button>
                     )}
                   </div>
-                  {exp.description && <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{exp.description}</p>}
+                  {exp.description && (
+                    <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>{exp.description}</p>
+                  )}
                 </div>
               </div>
             ))}
@@ -522,7 +652,7 @@ export default function ProfilePage() {
         )}
       </Section>
 
-      {/* Education */}
+      {/* ── Education ── */}
       <Section title="Education" onAdd={isOwnProfile ? () => setModal({ type: 'edu' }) : undefined}>
         {profile.education.length === 0 ? (
           <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>No education added</p>
@@ -530,18 +660,22 @@ export default function ProfilePage() {
           <div className="space-y-5">
             {profile.education.map((edu, i) => (
               <div key={edu._id ?? i} className="flex gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'var(--color-bg)' }}>
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+                >
                   <GraduationCap className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-semibold" style={{ color: 'var(--color-text)' }}>{edu.school}</p>
-                      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>{edu.degree}{edu.fieldOfStudy && `, ${edu.fieldOfStudy}`}</p>
+                      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+                        {edu.degree}{edu.field && `, ${edu.field}`}
+                      </p>
                       <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
                         <Calendar className="w-3 h-3" />
-                        {fmtDate(edu.startDate)} – {edu.current ? 'Present' : fmtDate(edu.endDate)}
+                        {fmtDate(edu.from)} – {edu.current ? 'Present' : fmtDate(edu.to)}
                       </p>
                     </div>
                     {isOwnProfile && (
@@ -557,7 +691,7 @@ export default function ProfilePage() {
         )}
       </Section>
 
-      {/* Skills */}
+      {/* ── Skills ── */}
       <Section title="Skills" onAdd={isOwnProfile ? () => setModal({ type: 'skills' }) : undefined}>
         {profile.skills.length === 0 ? (
           <p className="text-sm italic" style={{ color: 'var(--color-dim)' }}>No skills added</p>
@@ -567,8 +701,11 @@ export default function ProfilePage() {
               <div key={skill} className="flex items-center gap-1">
                 <Badge variant="default">{skill}</Badge>
                 {isOwnProfile && (
-                  <button onClick={() => removeSkillMut.mutate(skill)} className="hover:text-red-400 transition"
-                    style={{ color: 'var(--color-dim)' }}>
+                  <button
+                    onClick={() => removeSkillMut.mutate(skill)}
+                    className="hover:text-red-400 transition"
+                    style={{ color: 'var(--color-dim)' }}
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 )}
@@ -584,7 +721,7 @@ export default function ProfilePage() {
               onChange={e => setNewSkill(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newSkill.trim()) { addSkillMut.mutate(newSkill.trim()); } }}
               placeholder="Type a skill and press Enter"
-              className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+              className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
               style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               autoFocus
             />
@@ -594,16 +731,18 @@ export default function ProfilePage() {
         )}
       </Section>
 
-      {/* Resume — own profile only */}
+      {/* ── Resume — own profile only (ALL ZK encryption logic preserved) ── */}
       {isOwnProfile && (
         <Section title="Resume">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'var(--color-bg)' }}>
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+            >
               <FileText className="w-5 h-5" style={{ color: 'var(--color-dim)' }} />
             </div>
             <div className="flex-1">
-              {profile.resume ? (
+              {profile.resume?.originalName ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div>
@@ -612,92 +751,60 @@ export default function ProfilePage() {
                       </p>
                       <p className="text-xs flex items-center gap-1 mt-0.5" style={{ color: 'var(--color-dim)' }}>
                         <Lock className="w-3 h-3" />
-                        Encrypted · Uploaded {new Date(profile.resume.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        Zero-knowledge encrypted · Uploaded {new Date(profile.resume.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setShowResumeTotpModal(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition hover-shade"
+                        onClick={() => { setResumeTotpCode(''); setShowResumeTotpModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition hover-shade"
                         style={{ color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                       >
                         <Download className="w-3.5 h-3.5" /> Download
                       </button>
                       <label
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition hover-shade"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition hover-shade"
                         style={{ color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
                       >
                         <Upload className="w-3.5 h-3.5" /> Replace
                         <input
-                          ref={resumeInputRef}
                           type="file"
                           accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                           className="hidden"
-                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeMut.mutate(f); }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handleResumeFileSelect(f); e.target.value = ''; }}
                         />
                       </label>
                       <button
                         onClick={() => deleteResumeMut.mutate()}
                         disabled={deleteResumeMut.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
                         style={{ color: '#f87171', border: '1px solid rgba(248,113,113,0.3)' }}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                  {/* Detected skills from resume parsing */}
-                  {profile.resume.parsedSkills && profile.resume.parsedSkills.length > 0 && (
-                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                      <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-dim)' }}>
-                        Detected Skills
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {profile.resume.parsedSkills.map((skill) => (
-                          <Badge key={skill} variant="primary" size="sm">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {/* Detected titles from resume parsing */}
-                  {profile.resume.parsedTitles && profile.resume.parsedTitles.length > 0 && (
-                    <div className="pt-2 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                      <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-dim)' }}>
-                        Detected Roles
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {profile.resume.parsedTitles.map((title) => (
-                          <Badge key={title} variant="info" size="sm">
-                            {title}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <p className="text-xs" style={{ color: 'var(--color-dim)' }}>
+                    <Key className="w-3 h-3 inline mr-1" />
+                    Your resume is end-to-end encrypted. The server only stores ciphertext — your passphrase never leaves your browser.
+                  </p>
                 </div>
               ) : (
                 <div>
                   <p className="text-sm mb-3" style={{ color: 'var(--color-muted)' }}>
-                    No resume uploaded. PDF and DOCX files are accepted (max 10MB). Your resume is encrypted at rest.
+                    No resume uploaded. PDF and DOCX files are accepted (max 10MB).
+                    Your resume is encrypted in your browser before upload — only you can decrypt it.
                   </p>
                   <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      leftIcon={uploadResumeMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                      onClick={() => resumeInputRef.current?.click()}
-                      disabled={uploadResumeMut.isPending}
-                    >
-                      {uploadResumeMut.isPending ? 'Uploading…' : 'Upload Resume'}
+                    <Button variant="outline" size="sm" leftIcon={<Upload className="w-3.5 h-3.5" />}>
+                      Upload Resume
                     </Button>
                     <input
                       ref={resumeInputRef}
                       type="file"
                       accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       className="hidden"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadResumeMut.mutate(f); }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleResumeFileSelect(f); e.target.value = ''; }}
                     />
                   </label>
                 </div>
@@ -707,11 +814,72 @@ export default function ProfilePage() {
         </Section>
       )}
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       <AnimatePresence>
         {modal?.type === 'basic' && <EditBasicModal profile={profile} onClose={() => setModal(null)} />}
         {modal?.type === 'exp' && <ExperienceModal item={modal.item} onClose={() => setModal(null)} />}
         {modal?.type === 'edu' && <EducationModal item={modal.item} onClose={() => setModal(null)} />}
+      </AnimatePresence>
+
+      {/* Passphrase Modal — shown before upload or if key not cached before download */}
+      <AnimatePresence>
+        {showPassphraseModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+              style={{ background: 'var(--color-card)', border: '1px solid var(--color-border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Key className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
+                  <h3 className="font-bold" style={{ color: 'var(--color-text)' }}>
+                    {passphraseMode === 'upload' ? 'Set Resume Passphrase' : 'Enter Resume Passphrase'}
+                  </h3>
+                </div>
+                <button onClick={() => { setShowPassphraseModal(false); setPassphraseInput(''); setPendingUploadFile(null); }}
+                  className="p-1 rounded-lg hover-shade">
+                  <X className="w-4 h-4" style={{ color: 'var(--color-muted)' }} />
+                </button>
+              </div>
+              <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>
+                {passphraseMode === 'upload'
+                  ? 'Choose a passphrase to encrypt your resume. This passphrase never leaves your browser — the server only stores ciphertext. Remember it — you will need it every session to download.'
+                  : 'Enter your resume passphrase to decrypt and download your resume. It will be cached for this browser tab.'}
+              </p>
+              <input
+                type="password"
+                placeholder="Enter passphrase…"
+                value={passphraseInput}
+                onChange={e => setPassphraseInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handlePassphraseConfirm()}
+                autoFocus
+                className="w-full px-4 py-3 rounded-xl text-sm mb-4"
+                style={{
+                  background: 'var(--color-input-bg)', color: 'var(--color-text)',
+                  border: '1px solid var(--color-border)', outline: 'none',
+                }}
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setShowPassphraseModal(false); setPassphraseInput(''); setPendingUploadFile(null); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold sp-hover"
+                  style={{ color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}>
+                  Cancel
+                </button>
+                <button onClick={handlePassphraseConfirm} disabled={!passphraseInput.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition"
+                  style={{
+                    background: passphraseInput.trim() ? 'var(--color-accent)' : 'var(--color-shade)',
+                    color: passphraseInput.trim() ? 'white' : 'var(--color-dim)',
+                  }}>
+                  <Key className="w-4 h-4" />
+                  {passphraseMode === 'upload' ? 'Encrypt & Upload' : 'Decrypt & Download'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Resume TOTP Download Modal */}
@@ -735,7 +903,7 @@ export default function ProfilePage() {
                 </button>
               </div>
               <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>
-                Enter your 6-digit authenticator code to download your resume.
+                Enter your 6-digit authenticator code to proceed with the download.
               </p>
               <input
                 type="text"
@@ -766,7 +934,7 @@ export default function ProfilePage() {
                     color: resumeTotpCode.length === 6 ? 'white' : 'var(--color-dim)',
                   }}>
                   {resumeTotpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  Download
+                  Verify
                 </button>
               </div>
             </motion.div>

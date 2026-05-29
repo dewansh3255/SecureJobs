@@ -61,24 +61,27 @@ describe('generateTOTP + verifyTOTP', () => {
     expect(verifyTOTP('abcdef', secret)).toBe(false);
   });
 
-  it('should accept a code from ±30s window', () => {
+  it('should accept a code from the previous 30s window (clock drift)', () => {
     const secret = generateTOTPSecret();
-    // Code from 30 seconds ago
+    // Code from 30 seconds ago (previous period) — accepted for clock drift
     const pastCode = generateTOTP(secret, Date.now() - 30_000);
     expect(verifyTOTP(pastCode, secret)).toBe(true);
-    // Code from 30 seconds in future
+  });
+
+  it('should reject a code from 30s in the future', () => {
+    const secret = generateTOTPSecret();
+    // Future codes are NOT accepted — prevents pre-use attacks
     const futureCode = generateTOTP(secret, Date.now() + 30_000);
-    expect(verifyTOTP(futureCode, secret)).toBe(true);
+    expect(verifyTOTP(futureCode, secret)).toBe(false);
   });
 
   it('should reject a code from >30s outside window', () => {
     const secret = generateTOTPSecret();
     const oldCode = generateTOTP(secret, Date.now() - 90_000);
-    // May occasionally pass if we're exactly on a boundary; usually false
     const futureCode = generateTOTP(secret, Date.now() + 90_000);
-    // At least one of these should fail
-    const bothPass = verifyTOTP(oldCode, secret) && verifyTOTP(futureCode, secret);
-    expect(bothPass).toBe(false);
+    // Both must fail — neither is within the ±1 window
+    expect(verifyTOTP(oldCode, secret)).toBe(false);
+    expect(verifyTOTP(futureCode, secret)).toBe(false);
   });
 });
 

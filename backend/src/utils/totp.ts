@@ -5,6 +5,8 @@
  */
 
 import crypto from 'crypto';
+import { getRedisClient } from '../config/redis';
+import logger from './logger';
 
 // ─── Base32 Encoding/Decoding ────────────────────────────────────────────────
 
@@ -52,7 +54,7 @@ function base32Encode(input: Buffer): string {
 
 // ─── TOTP Core ────────────────────────────────────────────────────────────────
 
-const PERIOD = 30; // 30-second windows
+export const PERIOD = 30; // 30-second windows
 const DIGITS = 6;
 
 function hotp(secret: Buffer, counter: bigint): string {
@@ -77,18 +79,76 @@ export function generateTOTP(secretBase32: string, time = Date.now()): string {
 }
 
 /**
- * Verify a TOTP token — allows ±1 time step (±30s) for clock drift
+ * Verify a TOTP token — accepts current window ± 1 step to handle slight clock drift.
+ * The delta=±1 tolerance compensates for up to 30s device clock skew.
  */
 export function verifyTOTP(token: string, secretBase32: string): boolean {
   if (!/^\d{6}$/.test(token)) return false;
   const now = timeStep();
-  for (const delta of [-1n, 0n, 1n]) {
-    const expected = hotp(base32Decode(secretBase32), now + delta);
-    if (crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
-      return true;
-    }
+  const secret = base32Decode(secretBase32);
+  for (const delta of [0n, -1n, 1n]) {
+    const expected = hotp(secret, now + delta);
+    if (crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) return true;
   }
   return false;
+}
+
+export type TOTPVerifyResult = 'ok' | 'invalid' | 'replay';
+
+/**
+ * Verify a TOTP token with Redis-backed replay protection.
+ * Only the CURRENT 30-second window is accepted (no delta tolerance).
+ * Returns:
+ *  - 'ok'      code is valid and hasn't been used in this window
+ *  - 'invalid' code does not match the current TOTP window
+ *  - 'replay'  code was correct but already used in this time step
+ */
+export async function verifyTOTPOnce(
+  token: string,
+  secret: string,
+  userId: string
+): Promise<TOTPVerifyResult> {
+  if (!/^\d{6}$/.test(token)) return 'invalid';
+
+  const now = timeStep();
+  const secretBuf = base32Decode(secret);
+
+  // Accept ±1 window to handle clock drift (RFC 6238 §5.2 recommendation)
+  let matchedStep: bigint | null = null;
+  for (const delta of [0n, -1n, 1n]) {
+    const expected = hotp(secretBuf, now + delta);
+    if (crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+      matchedStep = now + delta;
+      break;
+    }
+  }
+  if (matchedStep === null) return 'invalid';
+
+  const redis = getRedisClient();
+  if (!redis) {
+    // Fail-closed: Redis unavailable means replay protection is broken — reject the code
+    logger.error('TOTP replay protection UNAVAILABLE — Redis is down; rejecting code to prevent replay attacks');
+    return 'invalid';
+  }
+
+  const replayKey = `used_totp:${userId}:${matchedStep.toString()}`;
+  try {
+    const alreadyUsed = await redis.get(replayKey);
+    if (alreadyUsed) return 'replay';
+    // Store key with TTL = 2 periods (60s) — covers the current window plus one extra
+    const setResult = await redis.set(replayKey, '1', { EX: PERIOD * 2 });
+    if (setResult !== 'OK') {
+      logger.error(`TOTP replay key store failed for ${replayKey}: result=${setResult}`);
+    } else {
+      logger.info(`TOTP replay key stored: ${replayKey} (TTL=${PERIOD * 2}s)`);
+    }
+  } catch (err) {
+    // Redis error — fail-closed to prevent replay attack window during outages
+    logger.error('TOTP Redis operation failed — rejecting code (fail-closed):', err);
+    return 'invalid';
+  }
+
+  return 'ok';
 }
 
 /**

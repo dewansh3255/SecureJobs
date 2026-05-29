@@ -9,6 +9,7 @@ export interface IJob extends Document {
   employer: mongoose.Types.ObjectId;
   title: string;
   company: string;
+  companyRef?: mongoose.Types.ObjectId;
   description: string;
   requirements: string[];
   responsibilities?: string[];
@@ -52,6 +53,11 @@ const jobSchema = new Schema<IJob>(
       trim: true,
       minlength: [2, 'Company name must be at least 2 characters'],
       maxlength: [100, 'Company name must be less than 100 characters'],
+    },
+    companyRef: {
+      type: Schema.Types.ObjectId,
+      ref: 'Company',
+      index: true,
     },
     description: {
       type: String,

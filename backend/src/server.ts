@@ -11,6 +11,7 @@ import connectDatabase from './config/database';
 import connectRedis, { getRedisClient } from './config/redis';
 import logger from './utils/logger';
 import { initializeSocketIO } from './sockets';
+import { initGenesis } from './utils/blockchain';
 
 // Create Express app
 const app = createApp();
@@ -43,6 +44,9 @@ const startServer = async () => {
     await Promise.all([connectDatabase(), connectRedis().catch(() => {
       logger.warn('Redis not available, continuing without it');
     })]);
+
+    // Initialize blockchain (genesis block if chain is empty)
+    await initGenesis();
 
     // Start listening
     server.listen(PORT, () => {

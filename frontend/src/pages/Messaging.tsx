@@ -1,16 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Component, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  MessageCircle, Send, Search, ArrowLeft, Loader2, UserPlus, Lock
+  MessageCircle, Send, Search, ArrowLeft, Loader2, UserPlus, Lock, ShieldCheck
 } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { apiService } from '@services/api';
 import { useAuth } from '@stores/authStore';
 import { Avatar } from '@components/ui/Avatar';
 import { Button } from '@components/ui/Button';
-import { encryptMessage, decryptMessage, isEncrypted, type EncryptedMessage } from '@services/crypto';
+import { encryptMessage, decryptMessage, isEncrypted, type EncryptedMessage, ensureSigningKeyPair, signContent, loadSigningPublicKeyJwk } from '@services/crypto';
 
 /* ─── Types ─── */
 interface Participant {
@@ -19,6 +19,7 @@ interface Participant {
   lastName: string;
   profilePicture?: string;
   headline?: string;
+  lastSeen?: string;
 }
 interface Conversation {
   _id: string;
@@ -33,6 +34,41 @@ interface Message {
   content: string;
   createdAt: string;
   readBy?: string[];
+  signature?: string;
+  signerPublicKey?: string;
+}
+
+/* ─── Message area Error Boundary ─── */
+class MessageErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-8 text-center">
+          <div>
+            <p className="text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+              Could not display messages
+            </p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="text-xs hover:underline"
+              style={{ color: 'var(--color-accent)' }}
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 /* ─── Helpers ─── */
@@ -75,7 +111,7 @@ function NewConversationPanel({ onCreated }: { onCreated: (convId: string) => vo
       qc.invalidateQueries({ queryKey: ['conversations'] });
       onCreated(data.data._id);
     },
-    onError: () => toast.error('Could not start conversation'),
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Could not start conversation'),
   });
   const users: Participant[] = data?.data ?? [];
 
@@ -127,6 +163,14 @@ export default function MessagingPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [recipientPublicKey, setRecipientPublicKey] = useState<JsonWebKey | null>(null);
   const [decryptedCache, setDecryptedCache] = useState<Record<string, string>>({});
+  const [mySigningPublicJwk, setMySigningPublicJwk] = useState<JsonWebKey | null>(null);
+
+  /* Ensure ECDSA signing key pair exists on mount */
+  useEffect(() => {
+    ensureSigningKeyPair()
+      .then(jwk => setMySigningPublicJwk(jwk))
+      .catch(() => {}); // silently ignore — signing is optional
+  }, []);
 
   /* Conversations list */
   const { data: convsData, isLoading: convsLoading } = useQuery({
@@ -205,13 +249,19 @@ export default function MessagingPage() {
 
   /* Send message (encrypts if recipient public key is available) */
   const sendMut = useMutation({
-    mutationFn: (content: string) =>
-      apiService.messages.send(selectedConv!, content).then(r => r.data),
+    mutationFn: ({ content, signature, signerPublicKey }: { content: string; signature?: string; signerPublicKey?: string }) =>
+      apiService.messages.send(selectedConv!, content, { signature, signerPublicKey }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['messages', selectedConv] });
       qc.invalidateQueries({ queryKey: ['conversations'] });
     },
     onError: () => toast.error('Failed to send message'),
+  });
+
+  const markAllReadMut = useMutation({
+    mutationFn: () => apiService.messages.markAllRead(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['conversations'] }),
+    onError: () => toast.error('Could not mark all as read'),
   });
 
   const handleSend = async () => {
@@ -227,7 +277,22 @@ export default function MessagingPage() {
         // Encryption failed — send as plaintext
       }
     }
-    sendMut.mutate(content);
+
+    // Sign the (possibly encrypted) content
+    let signature: string | undefined;
+    let signerPublicKey: string | undefined;
+    try {
+      const sig = await signContent(content);
+      if (sig) {
+        signature = sig;
+        const pubJwk = mySigningPublicJwk ?? await loadSigningPublicKeyJwk();
+        if (pubJwk) signerPublicKey = JSON.stringify(pubJwk);
+      }
+    } catch {
+      // Signing failed — send without signature
+    }
+
+    sendMut.mutate({ content, signature, signerPublicKey });
   };
 
   const handleSelectConv = (convId: string) => {
@@ -247,16 +312,27 @@ export default function MessagingPage() {
           <div className="flex items-center justify-between px-4 py-3"
             style={{ borderBottom: '1px solid var(--color-border)' }}>
             <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>Messages</h2>
-            <button
-              onClick={() => setShowNew(!showNew)}
-              className="p-2 rounded-xl transition"
-              style={{
-                background: showNew ? 'rgba(124,111,224,0.2)' : 'transparent',
-                color: showNew ? 'var(--color-accent)' : 'var(--color-muted)',
-              }}
-            >
-              <UserPlus className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => markAllReadMut.mutate()}
+                disabled={markAllReadMut.isPending}
+                title="Mark all as read"
+                className="p-2 rounded-xl transition text-xs"
+                style={{ color: 'var(--color-muted)' }}
+              >
+                ✓✓
+              </button>
+              <button
+                onClick={() => setShowNew(!showNew)}
+                className="p-2 rounded-xl transition"
+                style={{
+                  background: showNew ? 'rgba(124,111,224,0.2)' : 'transparent',
+                  color: showNew ? 'var(--color-accent)' : 'var(--color-muted)',
+                }}
+              >
+                <UserPlus className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* New conversation search */}
@@ -324,6 +400,11 @@ export default function MessagingPage() {
                           return raw;
                         })()}
                       </p>
+                      {other.lastSeen && (
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--color-dim)' }}>
+                          Last seen {fmtMsgDate(other.lastSeen)}
+                        </p>
+                      )}
                     </div>
                     {(conv.unreadCount ?? 0) > 0 && (
                       <span className="text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0"
@@ -386,6 +467,7 @@ export default function MessagingPage() {
               </div>
 
               {/* Messages */}
+              <MessageErrorBoundary>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {msgsLoading ? (
                   <div className="flex justify-center pt-8"><Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-muted)' }} /></div>
@@ -396,8 +478,9 @@ export default function MessagingPage() {
                 ) : (
                   <>
                     {messages.map((msg, i) => {
-                      const isMe = msg.sender._id === user?.id;
+                      const isMe = msg.sender?._id === user?.id;
                       const showDate = i === 0 || fmtMsgDate(messages[i - 1].createdAt) !== fmtMsgDate(msg.createdAt);
+                      const content = msg.content ?? '';
                       return (
                         <div key={msg._id}>
                           {showDate && (
@@ -415,8 +498,8 @@ export default function MessagingPage() {
                           >
                             {!isMe && (
                               <Avatar
-                                name={`${msg.sender.firstName} ${msg.sender.lastName}`}
-                                src={msg.sender.profilePicture}
+                                name={`${msg.sender?.firstName ?? ''} ${msg.sender?.lastName ?? ''}`}
+                                src={msg.sender?.profilePicture}
                                 size="sm"
                                 className="shrink-0 mb-1"
                               />
@@ -434,7 +517,7 @@ export default function MessagingPage() {
                                 }}>
                                 {(() => {
                                   try {
-                                    const parsed = JSON.parse(msg.content);
+                                    const parsed = JSON.parse(content);
                                     if (isEncrypted(parsed)) {
                                       const decrypted = decryptedCache[msg._id];
                                       return (
@@ -445,11 +528,16 @@ export default function MessagingPage() {
                                       );
                                     }
                                   } catch { /* not JSON */ }
-                                  return msg.content;
+                                  return content;
                                 })()}
                               </div>
-                              <span className="text-xs mt-0.5 px-1" style={{ color: 'var(--color-dim)' }}>
-                                {format(new Date(msg.createdAt), 'p')}
+                              <span className="text-xs mt-0.5 px-1 flex items-center gap-1" style={{ color: 'var(--color-dim)' }}>
+                                {msg.createdAt ? (() => { try { return format(new Date(msg.createdAt), 'p'); } catch { return ''; } })() : ''}
+                                {msg.signature && (
+                                  <span title="Message signed &amp; verified">
+                                    <ShieldCheck className="w-3 h-3 text-green-400 shrink-0" />
+                                  </span>
+                                )}
                               </span>
                             </div>
                           </motion.div>
@@ -460,6 +548,7 @@ export default function MessagingPage() {
                   </>
                 )}
               </div>
+              </MessageErrorBoundary>
 
               {/* Input */}
               <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>

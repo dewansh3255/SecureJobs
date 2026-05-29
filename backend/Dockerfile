@@ -22,8 +22,8 @@ COPY . .
 
 EXPOSE 5000
 
-# Development: run as root to allow file writes and temp files
-# Production uses separate stage with nodejs user
+# Run as non-root node user (built-in to node:alpine images)
+USER node
 CMD ["npm", "run", "dev"]
 
 # Stage 3: Build

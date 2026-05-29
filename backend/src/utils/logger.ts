@@ -68,17 +68,34 @@ export const logSecurityEvent = (
     try {
       // Lazy-require to avoid circular deps at module load time
       const AuditLog = (await import('../models/AuditLog')).default;
+      const userId = req?.user?.id ?? (details.userId as string | undefined);
+      const ip = req?.ip ?? (details.ip as string | undefined);
+      const userAgent =
+        typeof req?.headers?.['user-agent'] === 'string'
+          ? req.headers['user-agent']
+          : (details.userAgent as string | undefined);
+
       await AuditLog.create({
         event,
         action: (details.action as string) ?? event,
         severity,
-        userId: req?.user?.id ?? (details.userId as string | undefined),
-        ip: req?.ip ?? (details.ip as string | undefined),
-        userAgent: typeof req?.headers?.['user-agent'] === 'string'
-          ? req.headers['user-agent']
-          : (details.userAgent as string | undefined),
+        userId,
+        ip,
+        userAgent,
         details,
       });
+
+      // Also write to the blockchain audit trail (fire-and-forget)
+      import('./blockchain').then(({ addAuditEvent }) => {
+        addAuditEvent({
+          userId,
+          action: (details.action as string) ?? event,
+          ip,
+          userAgent,
+          metadata: details,
+          timestamp: new Date(),
+        }).catch(() => {/* non-fatal */});
+      }).catch(() => {/* non-fatal */});
     } catch {
       // Silently swallow — logging must never crash the application
     }

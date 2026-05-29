@@ -91,7 +91,7 @@ router.get('/connections', async (req: Request, res: Response) => {
     if (scored.length < limit) {
       const extras = await User.find({
         _id: { $ne: myId, $nin: [...myProfile.connections, ...candidateIds] },
-        active: { $ne: false },
+        isActive: { $ne: false },
       })
         .select('firstName lastName headline location profilePicture industry skills')
         .limit(limit - scored.length)

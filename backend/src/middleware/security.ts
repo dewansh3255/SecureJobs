@@ -21,7 +21,8 @@ export const helmetMiddleware = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      // React production builds use only external .js files — no eval/inline scripts needed
+      scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
@@ -128,6 +129,27 @@ export const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 50,
   delayMs: (hits) => Math.min(hits * 100, 5000),
+});
+
+/**
+ * Registration Rate Limiter
+ * Stricter limit to prevent account-farm abuse: 3 registrations/hour per IP
+ */
+export const registerRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip || 'unknown',
+  handler: (req, res) => {
+    logSecurityEvent('Registration rate limit exceeded - possible account farming', {
+      ip: req.ip,
+    }, 'warn');
+    res.status(429).json({
+      success: false,
+      message: 'Too many registration attempts. Please try again after an hour.',
+    });
+  },
 });
 
 /**
@@ -247,6 +269,11 @@ export const postRateLimiter = rateLimit({
 export const connectionRateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 50,
+  // Key on authenticated user ID if available, otherwise fall back to IP
+  keyGenerator: (req) => {
+    const userId = (req as any).user?.id?.toString();
+    return userId || req.ip || 'unknown';
+  },
   message: { success: false, message: 'Too many connection requests.' },
   standardHeaders: true,
   legacyHeaders: false,

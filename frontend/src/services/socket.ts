@@ -5,14 +5,15 @@
 
 import { io, Socket } from 'socket.io-client';
 
-const WS_URL = import.meta.env.VITE_WS_URL || '/ws';
+// In dev (Vite), connect directly to backend port. In prod, same origin (nginx proxies /socket.io/).
+const WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
 
 class SocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
-  connect(token: string): Promise<boolean> {
+  connect(): Promise<boolean> {
     return new Promise((resolve) => {
       if (this.socket?.connected) {
         resolve(true);
@@ -20,7 +21,7 @@ class SocketService {
       }
 
       this.socket = io(WS_URL, {
-        withCredentials: true,
+        withCredentials: true,           // sends HttpOnly cookies — auth happens server-side in io.use()
         transports: ['websocket', 'polling'],
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
@@ -31,17 +32,12 @@ class SocketService {
       this.socket.on('connect', () => {
         console.log('Socket connected');
         this.reconnectAttempts = 0;
-
-        // Authenticate
-        this.socket?.emit('authenticate', token, (success: boolean) => {
-          resolve(success);
-        });
+        resolve(true);
       });
 
       this.socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         this.reconnectAttempts++;
-
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           resolve(false);
         }
@@ -51,11 +47,8 @@ class SocketService {
         console.log('Socket disconnected:', reason);
       });
 
-      // Timeout after 5 seconds
       setTimeout(() => {
-        if (!this.socket?.connected) {
-          resolve(false);
-        }
+        if (!this.socket?.connected) resolve(false);
       }, 5000);
     });
   }

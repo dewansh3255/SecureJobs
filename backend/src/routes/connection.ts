@@ -64,6 +64,9 @@ router.post('/request/:userId', protect, connectionRateLimiter, async (req: Requ
           type: 'connection_request',
           title: 'Connection request',
           message: 'sent you a connection request',
+          reference: existing._id,
+          referenceModel: 'Connection',
+          data: { connectionId: String(existing._id) },
         }).catch(() => {});
 
         return res.status(200).json({ success: true, data: existing, message: 'Connection request sent' });
@@ -83,6 +86,9 @@ router.post('/request/:userId', protect, connectionRateLimiter, async (req: Requ
       type: 'connection_request',
       title: 'Connection request',
       message: 'sent you a connection request',
+      reference: connection._id,
+      referenceModel: 'Connection',
+      data: { connectionId: String(connection._id) },
     }).catch(() => {});
 
     return res.status(201).json({ success: true, data: connection, message: 'Connection request sent' });
@@ -216,18 +222,29 @@ router.get('/pending', protect, async (req: Request, res: Response) => {
 });
 
 // ──────────────────────────────────────────────
-// GET /connections — accepted connections list
+// GET /connections — accepted connections list (paginated)
 // ──────────────────────────────────────────────
 router.get('/', protect, async (req: Request, res: Response) => {
   try {
-    const connections = await Connection.find({
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit ?? '50'), 10) || 50));
+    const skip = (page - 1) * limit;
+
+    const filter = {
       $or: [{ requester: req.user!.id }, { recipient: req.user!.id }],
       status: 'accepted',
-    })
-      .populate('requester', 'firstName lastName profilePicture headline location')
-      .populate('recipient', 'firstName lastName profilePicture headline location')
-      .sort({ updatedAt: -1 })
-      .lean();
+    };
+
+    const [connections, total] = await Promise.all([
+      Connection.find(filter)
+        .populate('requester', 'firstName lastName profilePicture headline location')
+        .populate('recipient', 'firstName lastName profilePicture headline location')
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Connection.countDocuments(filter),
+    ]);
 
     // Return the "other user" in each connection
     const data = connections.map((c) => {
@@ -236,7 +253,7 @@ router.get('/', protect, async (req: Request, res: Response) => {
       return { connectionId: c._id, user: other, connectedAt: c.updatedAt };
     });
 
-    return res.json({ success: true, data, count: data.length });
+    return res.json({ success: true, data, count: data.length, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
   } catch (error) {
     logger.error('Get connections error', error);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -244,30 +261,73 @@ router.get('/', protect, async (req: Request, res: Response) => {
 });
 
 // ──────────────────────────────────────────────
-// GET /connections/suggestions — people you may know
+// GET /connections/suggestions — people you may know (2nd-degree connections)
 // ──────────────────────────────────────────────
 router.get('/suggestions', protect, async (req: Request, res: Response) => {
   try {
     const me = await User.findById(req.user!.id).select('connections skills industry').lean();
     if (!me) return res.status(404).json({ success: false, message: 'User not found' });
 
-    // Get IDs of already connected users + self
-    const excludeIds = [...(me.connections || []).map(String), String(req.user!.id)];
+    const myId = String(req.user!.id);
+    const myConnectionIds = (me.connections || []).map(String);
+    const excludeIds = new Set([myId, ...myConnectionIds]);
 
-    // Simple suggestions: users in same industry or with overlapping skills
-    const suggestions = await User.find({
-      _id: { $nin: excludeIds },
-      isActive: true,
-      $or: [
-        { industry: me.industry || '__none__' },
-        { skills: { $in: me.skills || [] } },
-      ],
-    })
-      .select('firstName lastName profilePicture headline location industry skills')
-      .limit(10)
-      .lean();
+    // Collect 2nd-degree connection IDs with mutual count
+    const mutualCounts: Record<string, number> = {};
 
-    return res.json({ success: true, data: suggestions });
+    if (myConnectionIds.length > 0) {
+      // For each 1st-degree friend, get THEIR connections
+      const friends = await User.find({ _id: { $in: myConnectionIds } })
+        .select('connections')
+        .lean();
+
+      for (const friend of friends) {
+        for (const cid of (friend.connections || []).map(String)) {
+          if (!excludeIds.has(cid)) {
+            mutualCounts[cid] = (mutualCounts[cid] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    const secondDegreeIds = Object.keys(mutualCounts);
+
+    let suggestions: any[] = [];
+
+    if (secondDegreeIds.length > 0) {
+      // Sort 2nd-degree candidates by mutual connection count (desc)
+      const sorted = secondDegreeIds.sort((a, b) => mutualCounts[b] - mutualCounts[a]).slice(0, 15);
+      const users = await User.find({ _id: { $in: sorted }, isActive: true })
+        .select('firstName lastName profilePicture headline location industry skills connections')
+        .lean();
+
+      suggestions = users.map((u) => ({
+        ...u,
+        mutualConnections: mutualCounts[String(u._id)] || 0,
+      }));
+      // Re-sort by mutual count (DB may return in any order)
+      suggestions.sort((a, b) => b.mutualConnections - a.mutualConnections);
+    }
+
+    // If still not enough suggestions, backfill with industry/skills match
+    if (suggestions.length < 5) {
+      const alreadySuggested = new Set([...excludeIds, ...suggestions.map((s) => String(s._id))]);
+      const fallback = await User.find({
+        _id: { $nin: [...alreadySuggested] },
+        isActive: true,
+        $or: [
+          { industry: me.industry || '__none__' },
+          { skills: { $in: me.skills || [] } },
+        ],
+      })
+        .select('firstName lastName profilePicture headline location industry skills')
+        .limit(10 - suggestions.length)
+        .lean();
+
+      suggestions = [...suggestions, ...fallback.map((u) => ({ ...u, mutualConnections: 0 }))];
+    }
+
+    return res.json({ success: true, data: suggestions.slice(0, 10) });
   } catch (error) {
     logger.error('Suggestions error', error);
     return res.status(500).json({ success: false, message: 'Server error' });

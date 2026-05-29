@@ -7,6 +7,7 @@ export {
   helmetMiddleware,
   apiRateLimiter,
   authRateLimiter,
+  registerRateLimiter,
   speedLimiter,
   uploadRateLimiter,
   postRateLimiter,

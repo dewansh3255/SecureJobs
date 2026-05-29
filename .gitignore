@@ -61,3 +61,8 @@ temp/
 
 # Memory
 *.mem
+
+# TLS certificates (generated locally — never commit private keys)
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt

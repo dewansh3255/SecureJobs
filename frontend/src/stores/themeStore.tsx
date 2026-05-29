@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 
 type Theme = 'light' | 'dark';
 
@@ -26,11 +26,11 @@ const useThemeStore = create<ThemeStore>((set, get) => ({
   },
 }));
 
-// Initialize theme from localStorage — default to dark (Spatial Dark is the primary design)
+// Initialize theme from localStorage — default to light (LinkedIn-style is the primary design)
 const initializeTheme = () => {
   const savedTheme = localStorage.getItem('theme') as Theme | null;
-  // Default to dark if no preference saved
-  const initialTheme: Theme = savedTheme || 'dark';
+  // Default to light if no preference saved
+  const initialTheme: Theme = savedTheme || 'light';
 
   document.documentElement.classList.toggle('dark', initialTheme === 'dark');
   useThemeStore.setState({ theme: initialTheme, isDark: initialTheme === 'dark' });
@@ -75,56 +75,31 @@ export const useTheme = () => {
 export const ThemeToggle = () => {
   const { isDark, toggleTheme } = useThemeStore();
 
-  const handleToggle = useCallback(() => {
-    toggleTheme();
-  }, [toggleTheme]);
-
   return (
     <button
-      onClick={handleToggle}
-      className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl
-                 bg-dark-750/60 border border-dark-600/50
-                 hover:border-accent-500/40 hover:bg-accent-500/10
-                 transition-all duration-200"
-      aria-label="Toggle theme"
+      onClick={toggleTheme}
+      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover-shade"
+      style={{
+        border: '1px solid var(--color-border)',
+        background: 'var(--color-card)',
+        color: 'var(--color-muted)',
+      }}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      {/* Sun icon (shown in dark mode) */}
-      <svg
-        className={`w-4 h-4 text-dark-300 transition-all duration-300 ${
-          isDark ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90 absolute'
-        }`}
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-        />
-      </svg>
-
-      {/* Moon icon (shown in light mode) */}
-      <svg
-        className={`w-4 h-4 text-dark-300 transition-all duration-300 ${
-          isDark ? 'opacity-0 -rotate-90 absolute' : 'opacity-100 rotate-0'
-        }`}
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-        />
-      </svg>
-
-      {/* Invisible placeholder to maintain layout */}
-      <svg className="w-4 h-4 invisible" fill="none" viewBox="0 0 24 24" />
+      {isDark ? (
+        /* Sun — shown in dark mode */
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ) : (
+        /* Moon — shown in light mode */
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
     </button>
   );
 };

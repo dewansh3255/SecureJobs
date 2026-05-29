@@ -7,6 +7,7 @@ import express, { Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import session from 'express-session';
 import { corsOptions } from './middleware/security';
 import {
   helmetMiddleware,
@@ -21,6 +22,7 @@ import { errorHandler } from './middleware';
 import logger from './utils/logger';
 import { csrfToken, csrfProtect } from './middleware/csrf';
 import config from './config';
+import passport from './config/passport';
 
 // Route imports
 import healthRoutes from './routes/health';
@@ -33,6 +35,7 @@ import jobRoutes from './routes/job';
 import notificationRoutes from './routes/notification';
 import adminRoutes from './routes/admin';
 import recommendationsRoutes from './routes/recommendations';
+import companyRoutes from './routes/company';
 
 /**
  * Create and configure Express application
@@ -41,9 +44,10 @@ export const createApp = (): Application => {
   const app = express();
 
   // ===========================================
-  // Trust proxy (for rate limiting behind proxies)
+  // Trust proxy (only in production behind nginx)
+  // In development, this would let clients spoof X-Forwarded-For to bypass rate limits
   // ===========================================
-  app.set('trust proxy', 1);
+  if (config.server.isProduction) app.set('trust proxy', 1);
 
   // ===========================================
   // Security Middleware
@@ -62,7 +66,28 @@ export const createApp = (): Application => {
   // ===========================================
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-  app.use(cookieParser(config.jwt.secret));
+  app.use(cookieParser(config.cookie.secret));
+
+  // ===========================================
+  // Session (used only for OAuth state handshake)
+  // ===========================================
+  app.use(session({
+    secret: config.session.secret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: config.server.isProduction,
+      sameSite: 'lax',   // lax allows the OAuth redirect callback
+      maxAge: 10 * 60 * 1000, // 10 minutes — just enough for OAuth flow
+    },
+  }));
+
+  // ===========================================
+  // Passport (OAuth only)
+  // ===========================================
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   // ===========================================
   // Compression
@@ -102,9 +127,14 @@ export const createApp = (): Application => {
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/admin', adminRoutes);
   app.use('/api/recommendations', recommendationsRoutes);
+  app.use('/api/companies', companyRoutes);
 
-  // Serve uploaded files
-  app.use('/uploads', express.static('uploads'));
+  // Serve uploaded files — public assets (profile pics, covers) served directly;
+  // all other paths (resumes etc.) are proxied through the backend with auth
+  app.use('/uploads/profiles', express.static('uploads/profiles'));
+  app.use('/uploads/covers', express.static('uploads/covers'));
+  // Resume downloads go through an authenticated API route (/api/users/me/resume/download)
+  // so raw /uploads/resumes/* is blocked here
 
   // ===========================================
   // Root Route

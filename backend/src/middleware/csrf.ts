@@ -29,7 +29,7 @@ function generateToken(): string {
   const rand = crypto.randomBytes(18).toString('base64url');
   const payload = `${ts}.${rand}`;
   const sig = crypto
-    .createHmac('sha256', config.jwt.secret)
+    .createHmac('sha256', config.csrf.secret)
     .update(payload)
     .digest('base64url');
   return `${payload}.${sig}`;
@@ -43,7 +43,7 @@ function verifyToken(token: string): boolean {
     const [tsB36, rand, sig] = parts;
     const payload = `${tsB36}.${rand}`;
     const expected = crypto
-      .createHmac('sha256', config.jwt.secret)
+      .createHmac('sha256', config.csrf.secret)
       .update(payload)
       .digest('base64url');
 
